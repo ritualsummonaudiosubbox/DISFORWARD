@@ -33,7 +33,11 @@ std::wstring defaults(){
 }
 int split(const df::Endpoint& send,const df::Endpoint& mic){
  df::Endpoint receivePlayback,receiveCapture;
- if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture)){std::wcerr<<L"FAIL: independent receive pair missing.\n";return 1;}
+ bool ready=false;for(int i=0;i<40&&!ready;++i){ready=df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture);if(!ready)Sleep(250);}
+ if(!ready){
+  for(auto flow:{eRender,eCapture})for(const auto& e:df::endpoints(flow))std::wcout<<L"Endpoint "<<static_cast<int>(flow)<<L": "<<e.name<<L" | "<<e.driver<<L" | "<<e.container<<L"\n";
+  std::wcerr<<L"FAIL: independent receive pair missing.\n";return 1;
+ }
  auto before=defaults();
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(receivePlayback,receiveCapture,cancel);if(cancel)CloseHandle(cancel);
  std::wcout<<L"Receive playback: "<<receivePlayback.name<<L" | "<<receivePlayback.driver<<L"\nReceive recording: "<<receiveCapture.name<<L" | "<<receiveCapture.driver<<L"\n"<<result<<L"\n";

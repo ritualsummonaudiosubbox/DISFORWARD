@@ -19,6 +19,11 @@ software and exclusive-fullscreen behavior require a live acceptance call.
 Run Check audio lines before that call. It plays short quiet generated tones;
 it does not verify external application device selections.
 
+The hosted Windows runner uses test mode. Production kernel signatures are
+separately checked with SignTool /kp; Secure Boot and Memory Integrity
+compatibility are not established by that runner audio test. Keep Windows
+security enabled and use the original vendor installation prompts.
+
 The DISFORWARD app/setup EXEs are not Authenticode-signed.
 The vendor installers remain original. Administrator rights and a restart
 may be required. No unsigned custom DISFORWARD kernel driver is installed.

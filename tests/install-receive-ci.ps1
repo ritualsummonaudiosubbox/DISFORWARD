@@ -40,4 +40,5 @@ try {
  try{$store.Open('ReadWrite');$store.Add($signature.SignerCertificate)}finally{$store.Close()}
  ./install-vbcable-ci.exe $inf.FullName VBAudioHFVAIO
  if($LASTEXITCODE){throw 'Receive driver installation failed'}
+ Get-PnpDevice -PresentOnly | Where-Object { $_.FriendlyName -match 'Hi-Fi|HFVAIO' } | Format-List Status,Class,FriendlyName,InstanceId,Problem
 } finally { if(-not $p.HasExited){$p.Kill()} }
