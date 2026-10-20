@@ -40,7 +40,7 @@ HRESULT clientFor(const std::wstring &id,Com<IAudioClient>& client){
     if(SUCCEEDED(hr))hr=device->Activate(__uuidof(IAudioClient),CLSCTX_ALL,nullptr,(void**)client.put());
     return hr;
 }
-HRESULT monitorClient(const std::wstring& id,Com<IAudioClient>& client){
+HRESULT monitorClient(const std::wstring& id,Com<IAudioClient>& client,bool allowRaw=true){
     auto hr=clientFor(id,client);if(FAILED(hr))return hr;
     Com<IAudioClient2> media;
     hr=client->QueryInterface(__uuidof(IAudioClient2),(void**)media.put());if(FAILED(hr))return hr;
@@ -52,7 +52,7 @@ HRESULT monitorClient(const std::wstring& id,Com<IAudioClient>& client){
     if(SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put()))&&
        SUCCEEDED(en->GetDevice(id.c_str(),device.put()))&&SUCCEEDED(device->OpenPropertyStore(STGM_READ,properties.put()))){
         PROPVARIANT value;PropVariantInit(&value);
-        if(SUCCEEDED(properties->GetValue(rawKey,&value)))raw=value.vt==VT_BOOL&&value.boolVal==VARIANT_TRUE;
+        if(SUCCEEDED(properties->GetValue(rawKey,&value)))raw=allowRaw&&value.vt==VT_BOOL&&value.boolVal==VARIANT_TRUE;
         PropVariantClear(&value);
     }
     AudioClientProperties options{};options.cbSize=sizeof(options);options.eCategory=AudioCategory_Media;
@@ -323,11 +323,21 @@ void Engine::run(RouteConfig config){
         if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),inputContext))return;
         if(!checked(config.monitor?monitorClient(config.output,output):clientFor(config.output,output),config.monitor?L"SPEAKER output (use a device at 44.1 kHz or higher)":L"Selected audio output"))return;
         auto f=format();
-        if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"Selected audio output"))return;
+        HRESULT outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr);
+        if(FAILED(outputInit)&&config.monitor){
+            // Some drivers advertise RAW but reject its stream/format combination.
+            // A fresh media client is required; never reuse a failed Initialize.
+            output.put();
+            if(!checked(monitorClient(config.output,output,false),L"SPEAKER compatible media output"))return;
+            outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr);
+        }
+        if(!checked(outputInit,L"Selected audio output"))return;
         if(!checked(output->GetService(__uuidof(IAudioRenderClient),(void**)render.put()),L"Output buffer"))return;
         if(config.monitor){
+            Com<IAudioSessionControl> baseSession;
             Com<IAudioSessionControl2> session;
-            if(!checked(output->GetService(__uuidof(IAudioSessionControl2),(void**)session.put()),L"SPEAKER audio session"))return;
+            if(!checked(output->GetService(__uuidof(IAudioSessionControl),(void**)baseSession.put()),L"SPEAKER audio session"))return;
+            if(!checked(baseSession->QueryInterface(__uuidof(IAudioSessionControl2),(void**)session.put()),L"SPEAKER session control"))return;
             if(!checked(session->SetDuckingPreference(TRUE),L"SPEAKER volume stability"))return;
         }
         output->GetService(__uuidof(IAudioClockAdjustment),(void**)clock.put());

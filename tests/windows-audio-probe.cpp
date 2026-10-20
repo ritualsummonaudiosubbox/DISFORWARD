@@ -78,6 +78,7 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
  monitor.start(nullptr,listeningRoute,2);call.start(nullptr,route,2);Sleep(400);
  call.stop();Sleep(300);
  check(L"Listening stream survives phone mute (test sink)",mic.id,1);
+ if(monitor.state.load()==3)std::wcerr<<L"Listening engine error: "<<monitor.message()<<L"\n";
  ok=ok&&monitor.state.load()==2;
  call.start(nullptr,route,2);Sleep(300);monitor.stop();Sleep(300);
  check(L"Phone stream survives speaker off (test sink)",mic.id,1);
