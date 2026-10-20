@@ -43,7 +43,7 @@ HRESULT clientFor(const std::wstring &id,Com<IAudioClient>& client){
 // Newer SDK ABI declarations; kept local to build with MinGW-w64 11.
 struct ProcessParams {int type=1;DWORD pid=0;int mode=0;};
 static_assert(sizeof(ProcessParams)==12,"Windows process capture ABI");
-class Activation final : public IActivateAudioInterfaceCompletionHandler {
+class Activation final : public IActivateAudioInterfaceCompletionHandler, public IAgileObject {
     std::atomic<ULONG> refs{1};
     Com<IUnknown> marshaler;
 public:
@@ -61,6 +61,7 @@ public:
         if(!obj)return E_POINTER;
         *obj=nullptr;
         if(riid==__uuidof(IUnknown)||riid==__uuidof(IActivateAudioInterfaceCompletionHandler)){*obj=static_cast<IActivateAudioInterfaceCompletionHandler*>(this);AddRef();return S_OK;}
+        if(riid==__uuidof(IAgileObject)){*obj=static_cast<IAgileObject*>(this);AddRef();return S_OK;}
         if(riid==IID_IMarshal&&marshaler)return marshaler->QueryInterface(riid,obj);
         return E_NOINTERFACE;
     }
