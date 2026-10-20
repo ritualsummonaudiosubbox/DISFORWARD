@@ -11,6 +11,7 @@
 #include <map>
 #include <new>
 #include <cmath>
+#include <cstdio>
 
 namespace df {
 namespace {
@@ -89,16 +90,25 @@ HRESULT processClient(DWORD pid,HANDLE cancel,Com<IAudioClient>& client){
 struct Capture {
     Com<IAudioClient> client;Com<IAudioCaptureClient> service;
     bool started=false;
+    HANDLE event=nullptr;
     StereoQueue queue;
     HRESULT init(const std::wstring &id,bool process,DWORD pid,HANDLE cancel){
         auto hr=process?processClient(pid,cancel,client):clientFor(id,client);if(FAILED(hr))return hr;
-        auto f=format();DWORD flags=Convert|(process?AUDCLNT_STREAMFLAGS_LOOPBACK:0);
+#ifdef DISFORWARD_AUDIO_TEST
+        if(process)std::wprintf(L"Activation succeeded for PID %lu\n",static_cast<unsigned long>(pid));
+#endif
+        auto f=format();DWORD flags=Convert|(process?(AUDCLNT_STREAMFLAGS_LOOPBACK|AUDCLNT_STREAMFLAGS_EVENTCALLBACK):0);
+        if(process){event=CreateEventW(nullptr,FALSE,FALSE,nullptr);if(!event)return HRESULT_FROM_WIN32(GetLastError());}
         hr=client->Initialize(AUDCLNT_SHAREMODE_SHARED,flags,process?0:200000,0,&f,nullptr);
+#ifdef DISFORWARD_AUDIO_TEST
+        if(process)std::wprintf(L"Process Initialize: 0x%08lX\n",static_cast<unsigned long>(hr));
+#endif
+        if(SUCCEEDED(hr)&&process)hr=client->SetEventHandle(event);
         if(SUCCEEDED(hr))hr=client->GetService(__uuidof(IAudioCaptureClient),(void**)service.put());
         return hr;
     }
     HRESULT start(){auto hr=client->Start();started=SUCCEEDED(hr);return hr;}
-    ~Capture(){if(started)client->Stop();}
+    ~Capture(){if(started)client->Stop();if(event)CloseHandle(event);}
     HRESULT drain(std::atomic<unsigned long>& faults){
         UINT32 n=0;HRESULT hr=service->GetNextPacketSize(&n);
         // Bound a drain pass so a stalled producer cannot starve rendering.
@@ -134,7 +144,11 @@ int probeProcessTone(DWORD pid,double frequency,unsigned duration){
     HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
     struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
     auto input=std::make_unique<Capture>();
-    if(FAILED(input->init(L"",true,pid,cancel))||FAILED(input->start()))return -1;
+    HRESULT hr=input->init(L"",true,pid,cancel);
+    std::wprintf(L"Process-loopback init: 0x%08lX\n",static_cast<unsigned long>(hr));
+    if(FAILED(hr))return -1;
+    hr=input->start();std::wprintf(L"Process-loopback start: 0x%08lX\n",static_cast<unsigned long>(hr));
+    if(FAILED(hr))return -1;
     ToneDetector detector(frequency);std::atomic<unsigned long> faults{0};auto begin=GetTickCount64();
     while(GetTickCount64()-begin<duration){
         if(FAILED(input->drain(faults)))return -1;
