@@ -46,7 +46,7 @@ jobs:
         run: |
           cl /nologo /std:c++17 /utf-8 /EHsc /W4 /WX /DUNICODE /D_UNICODE tests/install-vbcable-ci.cpp /Fe:install-vbcable-ci.exe /link setupapi.lib newdev.lib
           if ($LASTEXITCODE) { throw 'Install probe build failed' }
-          cl /nologo /std:c++17 /utf-8 /EHsc /W4 /WX /DUNICODE /D_UNICODE /DDISFORWARD_AUDIO_TEST tests/windows-audio-probe.cpp app/engine.cpp app/diagnostics.cpp /Fe:windows-audio-probe.exe /link ole32.lib uuid.lib mmdevapi.lib avrt.lib user32.lib
+          cl /nologo /std:c++17 /utf-8 /EHsc /W4 /WX /DUNICODE /D_UNICODE /DDISFORWARD_AUDIO_TEST tests/windows-audio-probe.cpp app/engine.cpp app/diagnostics.cpp /Fe:windows-audio-probe.exe /link ole32.lib uuid.lib mmdevapi.lib avrt.lib user32.lib cfgmgr32.lib
           if ($LASTEXITCODE) { throw 'Audio probe build failed' }
       - name: Signed driver and live audio on disposable runner
         id: live_audio

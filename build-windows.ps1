@@ -15,11 +15,11 @@ Push-Location (Join-Path $root 'app')
 try {
     & rc.exe /nologo /fo (Join-Path $out 'app.res') app.rc
     if ($LASTEXITCODE) { throw 'Console resources failed.' }
-    & cl.exe /nologo /std:c++17 /utf-8 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS console.cpp engine.cpp diagnostics.cpp (Join-Path $out 'app.res') "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD.exe" /link /MANIFEST:NO /SUBSYSTEM:WINDOWS ole32.lib uuid.lib mmdevapi.lib avrt.lib gdiplus.lib shell32.lib gdi32.lib user32.lib
+    & cl.exe /nologo /std:c++17 /utf-8 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS console.cpp engine.cpp diagnostics.cpp (Join-Path $out 'app.res') "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD.exe" /link /MANIFEST:NO /SUBSYSTEM:WINDOWS ole32.lib uuid.lib mmdevapi.lib avrt.lib gdiplus.lib shell32.lib gdi32.lib user32.lib cfgmgr32.lib
     if ($LASTEXITCODE) { throw 'Console build failed.' }
     & rc.exe /nologo /fo (Join-Path $out 'setup.res') cable_setup.rc
     if ($LASTEXITCODE) { throw 'Setup resources failed.' }
-    & cl.exe /nologo /std:c++17 /utf-8 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE cable_setup.cpp (Join-Path $out 'setup.res') "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD-Setup.exe" /link /MANIFEST:NO /SUBSYSTEM:WINDOWS bcrypt.lib shell32.lib user32.lib urlmon.lib ole32.lib uuid.lib
+    & cl.exe /nologo /std:c++17 /utf-8 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE cable_setup.cpp (Join-Path $out 'setup.res') "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD-Setup.exe" /link /MANIFEST:NO /SUBSYSTEM:WINDOWS bcrypt.lib shell32.lib user32.lib urlmon.lib ole32.lib uuid.lib cfgmgr32.lib
     if ($LASTEXITCODE) { throw 'VB-CABLE setup launcher build failed.' }
 } finally { Pop-Location }
 Copy-Item (Join-Path $root 'START-HERE.txt') $out -Force
