@@ -1,0 +1,35 @@
+DISFORWARD native development checkpoint
+
+EXECUTED PASSES
+- Portable driver PCM transport: sanitizer-enabled test of initial silence,
+  20 ms preroll, exact byte preservation, bounded 100 ms overflow, 25,000
+  timer-sized packets, reset-to-silence and separate adapter instances.
+- Portable user-mode audio tests: float FIFO order, bounds/overflow, silence,
+  non-finite sanitization, mute/source fades, 500,000 rapid-switch frames,
+  float pass-through and positive/negative tone detector cases.
+- User-mode Windows x64 console and driver-installer EXEs cross-compiled with
+  -Wall -Wextra -Werror and static C++ runtime; imports audited.
+
+SOURCE AUDIT
+- DisforwardAudio.inx uses ROOT\DISFORWARD and DisforwardAudio service/SYS/CAT.
+- Native endpoint identity property is required; renamed VB-CABLE is refused.
+- Both driver endpoints use 48 kHz stereo 32-bit PCM.
+- Driver transport is fixed-capacity, per adapter and protected by a spinlock.
+- Capture DMA copies the transport rather than generating a sine wave.
+- Render DMA enters that transport instead of being written to a file.
+- Sample registry overrides for recording/tone behavior are not read.
+- Timer cancellation precedes releasing its dependent miniport in destructor.
+- App captures only the selected source and detects Discord without persisting PID.
+
+NOT EXECUTED / RELEASE BLOCKERS
+- WDK compilation and compiler/static-driver-verifier diagnostics.
+- INF validation and catalog generation/validation with actual Windows tools.
+- Microsoft driver signing and normal Windows driver installation.
+- Driver Verifier, HLK, PnP/power/sleep/hot-unplug and timer/IRQL stress testing.
+- Rendered UI/high-DPI/multi-monitor and always-on-top behavior on Windows.
+- Real Discord capture, native microphone return, call-app reception and long calls.
+
+No native kernel driver binary is supplied or claimed built. Portable transport
+unit tests do not prove driver safety, schedulability or Windows compatibility.
+The presence of frontend EXEs is not evidence of a functioning installed device.
+No production release claim, zero-error guarantee or live Windows pass is made.

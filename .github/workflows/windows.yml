@@ -1,0 +1,43 @@
+name: Windows native build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  native:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: NuGet/setup-nuget@v2
+      - name: Configure Visual Studio
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
+          Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
+          Get-ChildItem Env: | ForEach-Object { "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
+      - name: Restore Microsoft SDK and WDK
+        run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
+      - name: Source and audio logic checks
+        shell: pwsh
+        run: |
+          python tests/check_source.py
+          cl /nologo /std:c++17 /EHsc /W4 /WX tests/native_pipe_test.cpp /Fe:native_pipe_test.exe
+          if ($LASTEXITCODE) { throw 'Pipe test build failed' }
+          ./native_pipe_test.exe
+          if ($LASTEXITCODE) { throw 'Pipe test failed' }
+          cl /nologo /std:c++17 /EHsc /W4 /WX tests/audio_core_test.cpp /Fe:audio_core_test.exe
+          if ($LASTEXITCODE) { throw 'Audio test build failed' }
+          ./audio_core_test.exe
+          if ($LASTEXITCODE) { throw 'Audio test failed' }
+      - name: Build native driver and console
+        shell: pwsh
+        run: ./build-windows.ps1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DISFORWARD-UNSIGNED-DEVELOPMENT-x64
+          path: artifacts/UNSIGNED-DEVELOPMENT
+          if-no-files-found: error

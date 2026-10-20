@@ -1,0 +1,6 @@
+Microsoft Windows-driver-samples/audio/simpleaudiosample
+Commit: 4d4618400525f9b2ce66fa2e267f58a55043be40
+https://github.com/microsoft/Windows-driver-samples
+Microsoft sample portions and derived driver source: MS-PL (LICENSE-MS-PL.txt).
+DISFORWARD modifications add a real, per-adapter PCM transport and distinct PnP identity.
+No driver binary has been built, signed, installed or validated in this environment.

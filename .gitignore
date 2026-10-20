@@ -1,0 +1,11 @@
+packages/
+artifacts/
+**/x64/
+**/Debug/
+**/Release/
+*.obj
+*.exe
+*.pdb
+*.ilk
+*.res
+*.binlog
