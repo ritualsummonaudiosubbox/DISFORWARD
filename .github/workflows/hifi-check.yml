@@ -1,0 +1,41 @@
+name: Independent cable compatibility
+on: [push, workflow_dispatch]
+jobs:
+  probe:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 5
+    steps:
+      - shell: pwsh
+        run: |
+          Invoke-WebRequest https://download.vb-audio.com/Download_CABLE/HiFiCableAsioBridgeSetup_v1007.zip -OutFile hifi.zip
+          if ((Get-FileHash hifi.zip).Hash -ne '3ecf204bfd8579d36bb918f9856eb1eaddd49c75146f5e8a8f59dcb8375ae89a') { throw 'Checksum' }
+          Expand-Archive hifi.zip hifi
+          Add-Type -AssemblyName UIAutomationClient
+          Add-Type -AssemblyName UIAutomationTypes
+          $p = Start-Process ./hifi/HiFiCableAsioBridgeSetup.exe -PassThru
+          Start-Sleep -Seconds 3
+          $root = [System.Windows.Automation.AutomationElement]::RootElement
+          $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$p.Id)
+          $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)
+          foreach ($e in $all) { Write-Host "$($e.Current.Name) | $($e.Current.ControlType.ProgrammaticName) | $($e.Current.AutomationId)" }
+          Add-Type -AssemblyName System.Drawing
+          Add-Type -AssemblyName System.Windows.Forms
+          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+          $img = [System.Drawing.Bitmap]::new($bounds.Width,$bounds.Height)
+          $g = [System.Drawing.Graphics]::FromImage($img)
+          $g.CopyFromScreen($bounds.Location,[System.Drawing.Point]::Empty,$bounds.Size)
+          $img.Save("$pwd/hifi.png")
+          foreach ($e in $all) {
+            if ($e.Current.Name -match '^Install$') {
+              try { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { Write-Host $_ }
+            }
+          }
+          Start-Sleep -Seconds 5
+          Get-ChildItem 'C:/Program Files','C:/Program Files (x86)' -Filter '*hfvaio*' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName; if ($_.Extension -eq '.inf') { Get-Content $_.FullName } }
+          Get-ChildItem 'C:/Program Files','C:/Program Files (x86)' -Filter readme.txt -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -match 'VB|ASIO|HiFi' | ForEach-Object { Get-Content $_.FullName }
+          $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
+          foreach ($e in $all) { if ($e.Current.Name) { Write-Host "$($e.Current.Name) | $($e.Current.ControlType.ProgrammaticName) | $($e.Current.AutomationId)" } }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hifi-probe
+          path: hifi.png
