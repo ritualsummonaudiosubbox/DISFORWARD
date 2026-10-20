@@ -1,7 +1,7 @@
 # DISFORWARD
 
 Compact Windows x64 console for forwarding your mic or Discord audio into one
-call-app microphone input. Version 0.6 adds an independent Discord receive line
+call-app microphone input. Version 0.6.1 adds an independent Discord receive line
 and **SPEAKER** monitoring. Windows default playback/communications settings
 are neither changed nor used to select the routes.
 

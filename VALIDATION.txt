@@ -1,4 +1,4 @@
-DISFORWARD 0.6 - verification scope
+DISFORWARD 0.6.1 - verification scope
 
 The app uses TWO independent VB-Audio transports:
 - Hi-Fi Cable: Discord receive.
@@ -30,3 +30,14 @@ security enabled and use the original vendor installation prompts.
 The DISFORWARD app/setup EXEs are not Authenticode-signed.
 The vendor installers remain original. Administrator rights and a restart
 may be required. No unsigned custom DISFORWARD kernel driver is installed.
+
+0.6.1 AUDIT PATCH
+- Cancelling Check audio lines preserves sending and SPEAKER state.
+  Continuing explicitly stops both routes and displays muted test status.
+- Receive and listening output failures identify the correct audio path.
+- One setup lock covers SEND and RECEIVE, including --receive invocations.
+- README.txt now matches the two-cable setup instead of the old process route.
+- Windows probes also check generated audio through the microphone branch,
+  microphone mute, repeated mic/friend starts and stops, and final silence.
+- UI assertions check SPEAKER remains enabled through every phone source
+  and Mute selection, then turns off independently.

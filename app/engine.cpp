@@ -249,22 +249,23 @@ void Engine::run(RouteConfig config){
         const int active=wanted.load();
         const bool isProgram=active==2&&config.process;
         const auto inputId=active==2&&!config.process?config.feed:config.mic;
+        const wchar_t* inputContext=active==2?L"Discord receive line":L"Your microphone";
         auto input=std::make_unique<Capture>();
         Com<IAudioClient> output;Com<IAudioRenderClient> render;Com<IAudioClockAdjustment> clock;
         HANDLE program=nullptr;
         if(isProgram){program=OpenProcess(SYNCHRONIZE,FALSE,config.pid);if(!program){fail(HRESULT_FROM_WIN32(GetLastError()),L"Discord closed");return;}}
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
         auto checked=[&](HRESULT hr,const wchar_t* context){if(FAILED(hr)){if(WaitForSingleObject(stopEvent,0)!=WAIT_OBJECT_0)fail(hr,context);return false;}return true;};
-        if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
-        if(!checked(clientFor(config.output,output),L"VB-CABLE playback endpoint"))return;
+        if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),inputContext))return;
+        if(!checked(clientFor(config.output,output),L"Selected audio output"))return;
         auto f=format();
-        if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"VB-CABLE output"))return;
+        if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"Selected audio output"))return;
         if(!checked(output->GetService(__uuidof(IAudioRenderClient),(void**)render.put()),L"Output buffer"))return;
         output->GetService(__uuidof(IAudioClockAdjustment),(void**)clock.put());
         UINT32 frames=0;if(!checked(output->GetBufferSize(&frames),L"Output capacity"))return;
         bufferMs=(int)(frames*1000/48000);
-        if(!checked(input->start(),isProgram?L"Discord playback":L"Your microphone"))return;
-        if(!checked(output->Start(),L"VB-CABLE output"))return;
+        if(!checked(input->start(),inputContext))return;
+        if(!checked(output->Start(),L"Selected audio output"))return;
         struct Stop{IAudioClient* client;~Stop(){client->Stop();client->Reset();}} outputStop{output.get()};
         Mmcss priority;SourceGate gate;
         state=2;PostMessageW(target,StateMessage,0,0);
@@ -275,7 +276,7 @@ void Engine::run(RouteConfig config){
             if(stopping&&!closeAt){wanted=0;closeAt=GetTickCount64()+45;}
             if(closeAt&&GetTickCount64()>=closeAt)break;
             if(program&&WaitForSingleObject(program,0)==WAIT_OBJECT_0){fail(HRESULT_FROM_WIN32(ERROR_PROCESS_ABORTED),L"Discord closed. Open Discord and select Friend again");break;}
-            if(!checked(input->drain(glitches),isProgram?L"Discord stream":L"Microphone stream"))break;
+            if(!checked(input->drain(glitches),inputContext))break;
             UINT32 padding=0;if(!checked(output->GetCurrentPadding(&padding),L"DISFORWARD device"))break;
             UINT32 available=frames-padding;
             if(available){

@@ -28,9 +28,6 @@ bool original(const BYTE* bytes,DWORD length,bool hifi=false){
 int error(const wchar_t* text){MessageBoxW(nullptr,text,L"DISFORWARD setup",MB_OK|MB_ICONERROR);return 1;}
 }
 int installSend(HINSTANCE instance){
- HANDLE lock=CreateMutexW(nullptr,TRUE,L"Global\\DISFORWARD_VBCABLE_SETUP");
- if(!lock||GetLastError()==ERROR_ALREADY_EXISTS){if(lock)CloseHandle(lock);return error(L"DISFORWARD audio setup is already running.");}
- struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{lock};
  if(MessageBoxW(nullptr,L"DISFORWARD uses VB-CABLE by VB-Audio for its microphone output.\n\n1. In the vendor installer, choose Install Driver.\n2. Restart Windows.\n3. Open DISFORWARD and choose your mic in Setup.\n4. Choose CABLE Output as your call app microphone.\n\nKeep your existing call-app playback device. DISFORWARD does not require changing Windows default playback or communications devices.\n\nVB-CABLE: www.vb-cable.com\nDonationware; donations are welcome. Professional use requires the vendor's applicable license.\n\nOpen the original VB-CABLE installer?",L"DISFORWARD · Install audio line",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)return 0;
  HRSRC resource=FindResourceW(instance,MAKEINTRESOURCEW(200),RT_RCDATA);if(!resource)return error(L"The bundled vendor package is missing. Download the complete package again.");
  HGLOBAL loaded=LoadResource(instance,resource);const BYTE* bytes=static_cast<const BYTE*>(LockResource(loaded));DWORD length=SizeofResource(instance,resource);
@@ -80,6 +77,9 @@ int installReceive(){
  MessageBoxW(nullptr,L"After a successful vendor installation, restart Windows and open DISFORWARD → Setup → Refresh.\n\nDiscord OUTPUT: Speakers (VB-Audio Hi-Fi Cable), also called Hi-Fi Cable Input.\nCall app MICROPHONE: CABLE Output.\nDISFORWARD SPEAKER: choose your headphones or physical speakers.\n\nKeep Discord INPUT on your physical microphone. Do not choose CABLE Output there, or your friend will hear their own forwarded voice.\n\nThis message does not confirm installation; DISFORWARD checks the actual endpoints.",L"DISFORWARD · Finish",MB_OK|MB_ICONINFORMATION);return 0;
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR command,int){
+ HANDLE lock=CreateMutexW(nullptr,TRUE,L"Global\\DISFORWARD_VBCABLE_SETUP");
+ if(!lock||GetLastError()==ERROR_ALREADY_EXISTS){if(lock)CloseHandle(lock);return error(L"DISFORWARD audio setup is already running.");}
+ struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{lock};
  HRESULT initialized=CoInitializeEx(nullptr,COINIT_MULTITHREADED);
  if(FAILED(initialized))return error(L"Could not initialize Windows audio setup.");
  struct CoEnd{~CoEnd(){CoUninitialize();}} coEnd;

@@ -1,4 +1,4 @@
-DISFORWARD 0.6 - independent Discord receive + SPEAKER
+DISFORWARD 0.6.1 - independent Discord receive + SPEAKER
 Windows x64. Extract the complete folder before running.
 
 FIRST SETUP

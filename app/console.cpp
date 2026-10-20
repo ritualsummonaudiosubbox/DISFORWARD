@@ -112,9 +112,9 @@ LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  if(id==121&&HIWORD(w)==CBN_SELCHANGE){bool was=speaker;listen(false);save();if(was)listen(true);layout();return 0;}
  switch(id){case 104:listen(!speaker);layout();break;case 101:choose(1);break;case 102:choose(2);break;case 103:choose(0);break;case 110:pinned=!pinned;SetWindowPos(h,pinned?HWND_TOPMOST:HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);setup=false;layout();break;case 111:setup=!setup;layout();break;case 112:SendMessageW(h,WM_CLOSE,0,0);break;case 130:refresh();break;case 131:install();break;case 132:{
   if(preview)break;
-  engine.stop();monitor.stop();speaker=false;source=0;
   if(!cable){message=L"Install VB-CABLE, then Refresh";redraw();break;}
-  if(MessageBoxW(h,L"Check the VB-CABLE playback-to-microphone path with a quiet 2-second test tone? Run this before joining a live call.\n\nThis test does not verify Discord or the call app.",L"DISFORWARD · Check audio line",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)break;
+  if(MessageBoxW(h,L"Check the send line and any installed Discord receive line with short quiet test tones? Run this before joining a live call.\n\nSending and SPEAKER will stop if you continue. Cancel keeps the current routes. This test does not verify Discord or the call app.",L"DISFORWARD · Check audio lines",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)break;
+  engine.stop();monitor.stop();speaker=false;source=0;message=L"Checking audio lines · sending muted";redraw();UpdateWindow(h);
   HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);
   auto result=df::testVirtualLine(cableSend,cableMic,cancel);if(receive)result+=L"\n\nDiscord receive line:\n"+df::testVirtualLine(discordPlayback,discordCapture,cancel);if(cancel)CloseHandle(cancel);
   message=L"Muted · line check finished";MessageBoxW(h,result.c_str(),L"DISFORWARD · Audio line result",MB_OK|MB_ICONINFORMATION);break;

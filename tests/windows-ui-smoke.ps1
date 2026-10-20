@@ -3,6 +3,7 @@ $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Drawing
 Add-Type @'
 using System;
+using System.Text;
 using System.Runtime.InteropServices;
 public static class NativeUi {
  [StructLayout(LayoutKind.Sequential)] public struct Rect {public int Left,Top,Right,Bottom;}
@@ -11,6 +12,7 @@ public static class NativeUi {
  [DllImport("user32.dll")] public static extern IntPtr SendMessage(IntPtr h,uint m,IntPtr w,IntPtr l);
  [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h,int index);
  [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);
+ [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int count);
 }
 '@
 $p = Start-Process -FilePath (Resolve-Path $Exe) -ArgumentList '--ui-preview' -PassThru
@@ -37,7 +39,18 @@ try {
  finally { $graphics.ReleaseHdc($dc) }
  $bitmap.Save($Screenshot,[System.Drawing.Imaging.ImageFormat]::Png)
  $graphics.Dispose(); $bitmap.Dispose()
- foreach ($id in @(101,102,103,104,104)) { [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,$id),0xF5,[IntPtr]::Zero,[IntPtr]::Zero) }
+ $speaker=[NativeUi]::GetDlgItem($h,104)
+ [void][NativeUi]::SendMessage($speaker,0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
+ foreach ($id in @(103,101,102,103)) {
+  [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,$id),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
+  $text=[Text.StringBuilder]::new(80)
+  [void][NativeUi]::GetWindowText($speaker,$text,$text.Capacity)
+  if($text.ToString() -ne 'SPEAKER ON'){throw 'Phone source or mute changed independent SPEAKER state'}
+ }
+ [void][NativeUi]::SendMessage($speaker,0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
+ $text=[Text.StringBuilder]::new(80)
+ [void][NativeUi]::GetWindowText($speaker,$text,$text.Capacity)
+ if($text.ToString() -ne 'SPEAKER OFF'){throw 'SPEAKER did not turn off'}
  [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,111),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
  [void][NativeUi]::GetWindowRect($h,[ref]$r)
  if ($r.Bottom-$r.Top -le $height) { throw 'Setup panel did not expand' }

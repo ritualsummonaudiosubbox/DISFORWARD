@@ -51,13 +51,20 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
  STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
  if(!CreateProcessW(path,cmd.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&si,&pi))return 1;
  CloseHandle(pi.hThread);
- struct Child{HANDLE h;~Child(){WaitForSingleObject(h,22000);CloseHandle(h);}} child{pi.hProcess};
+ struct Child{HANDLE h;~Child(){WaitForSingleObject(h,28000);CloseHandle(h);}} child{pi.hProcess};
  bool ok=true;
  auto check=[&](const wchar_t* label,const std::wstring& id,int expected){int got=df::probeEndpointTone(id,997,1000);std::wcout<<label<<L": "<<got<<L" (expected "<<expected<<L")\n";ok=ok&&got==expected;};
  check(L"Discord receive signal",receiveCapture.id,1);
  check(L"Muted send has no receive bypass",mic.id,0);
  df::RouteConfig route;route.process=false;route.feed=receiveCapture.id;route.output=send.id;
  df::Engine call,monitor;
+ // A generated capture source exercises the same capture-device branch as
+ // a physical mic, without requesting or recording private microphone audio.
+ df::RouteConfig simulatedMic;simulatedMic.mic=receiveCapture.id;simulatedMic.output=send.id;simulatedMic.process=false;
+ call.start(nullptr,simulatedMic,1);Sleep(400);
+ check(L"Microphone capture branch forwards generated signal",mic.id,1);
+ ok=ok&&call.state.load()==2;call.stop();Sleep(400);
+ check(L"Microphone mute is silent",mic.id,0);
  call.start(nullptr,route,2);Sleep(400);
  check(L"Friend forwarded to send",mic.id,1);
  call.stop();Sleep(400);
@@ -72,6 +79,11 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
  check(L"Phone stream survives speaker off (test sink)",mic.id,1);
  ok=ok&&call.state.load()==2;call.stop();Sleep(400);
  check(L"Both streams off are silent",mic.id,0);
+ for(int i=0;i<3;++i){
+  call.start(nullptr,i%2?simulatedMic:route,i%2?1:2);Sleep(400);
+  ok=ok&&call.state.load()==2;call.stop();
+ }
+ check(L"Repeated mic/friend starts and stops leave send silent",mic.id,0);
  bool unchanged=before==defaults();std::wcout<<L"Windows default endpoints unchanged: "<<unchanged<<L"\n";
  if(!ok||!unchanged){std::wcerr<<L"FAIL: split cable route or independent engine lifecycle.\n";return 1;}
  std::wcout<<L"PASS: independent receive/send buses, routed friend forwarding and mute isolation, independent listening/send stream lifetimes, unchanged default endpoints. Physical speakers and actual calls not tested.\n";return 0;
@@ -85,7 +97,7 @@ int wmain(int argc,wchar_t** argv){
  for(int i=0;i<40&&!found;++i){found=df::cablePair(df::endpoints(eRender),df::endpoints(eCapture),send,mic);if(!found)Sleep(250);}
  if(!found){std::wcerr<<L"FAIL: no active VB-CABLE endpoint pair.\n";return 1;}
  if(argc>1&&wcscmp(argv[1],L"--tone")==0)return tone(send);
- if(argc>1&&wcscmp(argv[1],L"--tone-receive")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,18000);}
+ if(argc>1&&wcscmp(argv[1],L"--tone-receive")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,24000);}
  if(argc>1&&wcscmp(argv[1],L"--split")==0)return split(send,mic);
  std::wcout<<L"Playback: "<<send.name<<L" | interface: "<<send.driver<<L"\nCapture: "<<mic.name<<L" | interface: "<<mic.driver<<L"\n";
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(send,mic,cancel);if(cancel)CloseHandle(cancel);std::wcout<<result<<L"\n";
