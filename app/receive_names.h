@@ -34,7 +34,8 @@ inline unsigned nameReceiveEndpoints(HRESULT* lastError=nullptr){
     if(SUCCEEDED(device->GetId(&id))){
      std::wstring instance=L"SWD\\MMDEVAPI\\"+std::wstring(id);CoTaskMemFree(id);
      DEVINST node=0;CONFIGRET cr=CM_Locate_DevNodeW(&node,instance.data(),CM_LOCATE_DEVNODE_NORMAL);
-     if(cr==CR_SUCCESS)cr=CM_Set_DevNode_PropertyW(node,&DEVPKEY_Device_FriendlyName,DEVPROP_TYPE_STRING,reinterpret_cast<const BYTE*>(name.pwszVal),static_cast<ULONG>((wcslen(name.pwszVal)+1)*sizeof(wchar_t)),0);
+     const DEVPROPKEY friendlyKey{PKEY_Device_FriendlyName.fmtid,PKEY_Device_FriendlyName.pid};
+     if(cr==CR_SUCCESS)cr=CM_Set_DevNode_PropertyW(node,&friendlyKey,DEVPROP_TYPE_STRING,reinterpret_cast<BYTE*>(name.pwszVal),static_cast<ULONG>((wcslen(name.pwszVal)+1)*sizeof(wchar_t)),0);
      result=cr==CR_SUCCESS?S_OK:HRESULT_FROM_WIN32(CM_MapCrToWin32Err(cr,ERROR_ACCESS_DENIED));
     }
    }
