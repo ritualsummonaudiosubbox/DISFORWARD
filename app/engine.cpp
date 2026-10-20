@@ -40,6 +40,34 @@ HRESULT clientFor(const std::wstring &id,Com<IAudioClient>& client){
     if(SUCCEEDED(hr))hr=device->Activate(__uuidof(IAudioClient),CLSCTX_ALL,nullptr,(void**)client.put());
     return hr;
 }
+HRESULT monitorClient(const std::wstring& id,Com<IAudioClient>& client){
+    auto hr=clientFor(id,client);if(FAILED(hr))return hr;
+    Com<IAudioClient2> media;
+    hr=client->QueryInterface(__uuidof(IAudioClient2),(void**)media.put());if(FAILED(hr))return hr;
+    // A listening stream is media, never a communications/voice-processing stream.
+    // Request RAW only when the device explicitly advertises support.
+    Com<IMMDeviceEnumerator> en;Com<IMMDevice> device;Com<IPropertyStore> properties;
+    bool raw=false;
+    const PROPERTYKEY rawKey={{0x8943b373,0x388c,0x4395,{0xb5,0x57,0xbc,0x6d,0xba,0xff,0xaf,0xdb}},2};
+    if(SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put()))&&
+       SUCCEEDED(en->GetDevice(id.c_str(),device.put()))&&SUCCEEDED(device->OpenPropertyStore(STGM_READ,properties.put()))){
+        PROPVARIANT value;PropVariantInit(&value);
+        if(SUCCEEDED(properties->GetValue(rawKey,&value)))raw=value.vt==VT_BOOL&&value.boolVal==VARIANT_TRUE;
+        PropVariantClear(&value);
+    }
+    AudioClientProperties options{};options.cbSize=sizeof(options);options.eCategory=AudioCategory_Media;
+    options.Options=raw?AUDCLNT_STREAMOPTIONS_RAW:AUDCLNT_STREAMOPTIONS_NONE;
+    hr=media->SetClientProperties(&options);
+    if(FAILED(hr)&&raw){raw=false;options.Options=AUDCLNT_STREAMOPTIONS_NONE;hr=media->SetClientProperties(&options);}
+    if(FAILED(hr))return hr;
+    WAVEFORMATEX* mix=nullptr;hr=client->GetMixFormat(&mix);
+    if(SUCCEEDED(hr)&&(!mix||mix->nSamplesPerSec<44100))hr=AUDCLNT_E_UNSUPPORTED_FORMAT;
+#ifdef DISFORWARD_AUDIO_TEST
+    std::wprintf(L"SPEAKER media output: %lu Hz, RAW supported/accepted=%d\n",mix?mix->nSamplesPerSec:0,raw?1:0);
+#endif
+    if(mix)CoTaskMemFree(mix);
+    return hr;
+}
 // Newer SDK ABI declarations; kept local to build with MinGW-w64 11.
 struct ProcessParams {int type=1;DWORD pid=0;int mode=0;};
 static_assert(sizeof(ProcessParams)==12,"Windows process capture ABI");
@@ -141,6 +169,42 @@ std::vector<Endpoint> endpoints(EDataFlow flow){
     return result;
 }
 #ifdef DISFORWARD_AUDIO_TEST
+int probeEndpointQuality(const std::wstring& id){
+ HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return 0;
+ struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
+ auto input=std::make_unique<Capture>();
+ if(FAILED(input->init(id,false,0,cancel))||FAILED(input->start()))return 0;
+ std::vector<float> left,right;auto begin=GetTickCount64();std::atomic<unsigned long> faults{0};
+ while(GetTickCount64()-begin<1800){
+  if(FAILED(input->drain(faults)))return 0;
+  float l=0,r=0;while(input->queue.pop(l,r)){left.push_back(l);right.push_back(r);}Sleep(2);
+ }
+ constexpr size_t count=48000;
+ if(left.size()<count)return 0;
+ const size_t start=left.size()-count;
+ std::vector<double> window(count);double total=0;
+ for(size_t i=0;i<count;++i){window[i]=.5-.5*std::cos(6.283185307179586*static_cast<double>(i)/(count-1));total+=window[i];}
+ auto amplitude=[&](const std::vector<float>& samples,double hz){
+  double best=0;
+  // Clock compensation is allowed; search a narrow neighborhood rather
+  // than mistaking a sub-Hz device-clock difference for lost treble.
+  for(int offset=-16;offset<=16;++offset){
+   double omega=6.283185307179586*(hz+offset*.25)/48000.;
+   double cosine=std::cos(omega),sine=std::sin(omega),c=1,s=0,real=0,imag=0;
+   for(size_t i=0;i<count;++i){double v=samples[start+i]*window[i];real+=v*c;imag+=v*s;double next=c*cosine-s*sine;s=s*cosine+c*sine;c=next;}
+   best=std::max(best,2*std::hypot(real,imag)/total);
+  }
+  return best;
+ };
+ bool ok=true;
+ for(double hz:{80.,997.,8000.,16000.}){
+  double l=amplitude(left,hz),r=amplitude(right,hz);
+  std::wprintf(L"SPEAKER full-band %5.0f Hz: L=%.6f R=%.6f (target .0125/.00625)\n",hz,l,r);
+  ok=ok&&std::abs(l/.0125-1)<.15&&std::abs(r/.00625-1)<.15;
+ }
+ std::wprintf(L"%ls: SPEAKER 80 Hz–16 kHz transfer and independent stereo channel levels on virtual test sink.\n",ok?L"PASS":L"FAIL");
+ return ok?1:0;
+}
 int probeEndpointTone(const std::wstring& id,double frequency,unsigned duration){
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
  struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
@@ -257,10 +321,15 @@ void Engine::run(RouteConfig config){
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
         auto checked=[&](HRESULT hr,const wchar_t* context){if(FAILED(hr)){if(WaitForSingleObject(stopEvent,0)!=WAIT_OBJECT_0)fail(hr,context);return false;}return true;};
         if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),inputContext))return;
-        if(!checked(clientFor(config.output,output),L"Selected audio output"))return;
+        if(!checked(config.monitor?monitorClient(config.output,output):clientFor(config.output,output),config.monitor?L"SPEAKER output (use a device at 44.1 kHz or higher)":L"Selected audio output"))return;
         auto f=format();
         if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"Selected audio output"))return;
         if(!checked(output->GetService(__uuidof(IAudioRenderClient),(void**)render.put()),L"Output buffer"))return;
+        if(config.monitor){
+            Com<IAudioSessionControl2> session;
+            if(!checked(output->GetService(__uuidof(IAudioSessionControl2),(void**)session.put()),L"SPEAKER audio session"))return;
+            if(!checked(session->SetDuckingPreference(TRUE),L"SPEAKER volume stability"))return;
+        }
         output->GetService(__uuidof(IAudioClockAdjustment),(void**)clock.put());
         UINT32 frames=0;if(!checked(output->GetBufferSize(&frames),L"Output capacity"))return;
         bufferMs=(int)(frames*1000/48000);

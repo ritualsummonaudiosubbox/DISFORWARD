@@ -1,4 +1,4 @@
-DISFORWARD 0.6.1 - verification scope
+DISFORWARD 0.6.2 - verification scope
 
 The app uses TWO independent VB-Audio transports:
 - Hi-Fi Cable: Discord receive.
@@ -31,7 +31,7 @@ The DISFORWARD app/setup EXEs are not Authenticode-signed.
 The vendor installers remain original. Administrator rights and a restart
 may be required. No unsigned custom DISFORWARD kernel driver is installed.
 
-0.6.1 AUDIT PATCH
+0.6.2 AUDIT PATCH
 - Cancelling Check audio lines preserves sending and SPEAKER state.
   Continuing explicitly stops both routes and displays muted test status.
 - Receive and listening output failures identify the correct audio path.
@@ -41,3 +41,17 @@ may be required. No unsigned custom DISFORWARD kernel driver is installed.
   microphone mute, repeated mic/friend starts and stops, and final silence.
 - UI assertions check SPEAKER remains enabled through every phone source
   and Mute selection, then turns off independently.
+
+0.6.2 SPEAKER / LAYOUT PATCH
+- SPEAKER is a media-category stream; supported RAW mode bypasses optional
+  endpoint processing. Always-on hardware processing cannot be bypassed.
+- The listening session opts out of Windows communications auto-ducking.
+- Narrow-band outputs below 44.1 kHz are rejected with a device message.
+- Windows quality probe sends separate stereo levels at 80, 997, 8000 and
+  16000 Hz through the actual monitor engine into a virtual test sink.
+  Acceptance is within 15 percent of the generated level at each frequency.
+- Phone source controls occupy one row; listening has its own aligned row;
+  meters and Setup controls follow a consistent grid.
+- No acoustic echo cancellation has been added to Discord's physical mic.
+  Discord owns that capture stream. Enable Discord Echo Cancellation when
+  using PC speakers. Actual room echo and subjective listening need testing.

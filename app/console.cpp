@@ -36,12 +36,12 @@ void listen(bool enabled){
   if(!receive||out.empty()){MessageBoxW(window,L"Install the Discord receive line and choose your headphones or speakers in Setup.",L"DISFORWARD · Speaker",MB_OK|MB_ICONINFORMATION);setup=true;return;}
   auto issue=receiveIssue;
   if(!issue.empty()){MessageBoxW(window,issue.c_str(),L"DISFORWARD · Receive format",MB_OK|MB_ICONINFORMATION);setup=true;return;}
-  df::RouteConfig route;route.process=false;route.feed=discordCapture.id;route.output=out;
+  df::RouteConfig route;route.process=false;route.monitor=true;route.feed=discordCapture.id;route.output=out;
   speaker=true;monitor.start(nullptr,route,2);
  }
  redraw();
 }
-void layout(){for(int id:{120,121,130,131,132,133})ShowWindow(GetDlgItem(window,id),setup?SW_SHOW:SW_HIDE);SetWindowPos(window,nullptr,0,0,px(360),px(setup?462:174),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);redraw();}
+void layout(){for(int id:{120,121,130,131,132,133})ShowWindow(GetDlgItem(window,id),setup?SW_SHOW:SW_HIDE);SetWindowPos(window,nullptr,0,0,px(360),px(setup?518:208),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);redraw();}
 void refresh(){
  save();engine.stop();monitor.stop();receiver.stop();speaker=false;source=0;cable=false;receive=false;microphones.clear();speakers.clear();SendMessageW(listening,CB_RESETCONTENT,0,0);SendMessageW(microphone,CB_RESETCONTENT,0,0);
  auto inputs=df::endpoints(eCapture),outputs=df::endpoints(eRender);
@@ -86,14 +86,17 @@ void paint(){
  label(g,message,14,42,332,27,13,c(182,198,209),true);
  label(g,L"Call hears the selected source. Speaker is separate.",14,66,332,17,10,c(131,145,161));
  float p=static_cast<float>(engine.peak.load())/10000.f;float db=p>0?20*std::log10(p):-90;
- box(g,14,153,55,3,c(38,45,56));float amount=std::clamp((db+60)/60,0.f,1.f);if(amount>0)box(g,14,153,55*amount,3,db>=0?c(252,135,124):c(104,221,187));
- label(g,cable?L"Mic: "+cableMic.name.substr(0,cableMic.name.find(L" (")):L"Mic: not connected",194,141,152,22,10,c(131,145,161));
- if(setup){label(g,L"Your microphone",14,184,332,18,10,c(158,174,189));
- label(g,L"SPEAKER plays Discord through",14,242,332,18,10,c(158,174,189));
- label(g,L"Set Discord OUTPUT to:",14,301,332,18,10,c(158,174,189));
- label(g,receive?discordPlayback.name:L"Install Hi-Fi Cable receive line",14,320,332,20,11,c(234,239,245),true);
- label(g,L"Set call app MICROPHONE to:",14,345,332,18,10,c(158,174,189));
- label(g,cable?cableMic.name:L"Install VB-CABLE send line",14,364,332,20,11,c(234,239,245),true); }
+ box(g,14,138,332,1,c(38,45,56));
+ label(g,speaker?L"Discord listening enabled":L"Listen to Discord locally",186,148,160,30,10,c(158,174,189));
+ box(g,14,193,160,3,c(38,45,56));float amount=std::clamp((db+60)/60,0.f,1.f);if(amount>0)box(g,14,193,160*amount,3,db>=0?c(252,135,124):c(104,221,187));
+ label(g,cable?L"Send: "+cableMic.name.substr(0,cableMic.name.find(L" (")):L"Send: not connected",194,183,152,22,10,c(131,145,161));
+ if(setup){label(g,L"Your microphone",14,220,332,18,10,c(158,174,189));
+ label(g,L"SPEAKER plays Discord through",14,278,332,18,10,c(158,174,189));
+ label(g,L"Set Discord OUTPUT to:",14,337,332,18,10,c(158,174,189));
+ label(g,receive?discordPlayback.name:L"Install Hi-Fi Cable receive line",14,356,332,20,11,c(234,239,245),true);
+ label(g,L"Set call app MICROPHONE to:",14,381,332,18,10,c(158,174,189));
+ label(g,cable?cableMic.name:L"Install VB-CABLE send line",14,400,332,20,11,c(234,239,245),true);
+ label(g,L"Using speakers? Enable Discord echo cancellation.",14,423,332,18,10,c(158,174,189)); }
  }
  BitBlt(dc,0,0,r.right,r.bottom,mem,0,0,SRCCOPY);SelectObject(mem,prior);DeleteObject(bmp);DeleteDC(mem);EndPaint(window,&ps);
 }
@@ -120,7 +123,7 @@ LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
   message=L"Muted · line check finished";MessageBoxW(h,result.c_str(),L"DISFORWARD · Audio line result",MB_OK|MB_ICONINFORMATION);break;
  }case 133:ShellExecuteW(h,L"open",L"control.exe",L"mmsys.cpl",nullptr,SW_SHOWNORMAL);break;}redraw();return 0;}
  case df::Engine::StateMessage:if(engine.state.load()==3){source=0;message=engine.message();engine.stop();MessageBoxW(h,message.c_str(),L"DISFORWARD audio error",MB_OK|MB_ICONERROR);}else if(engine.state.load()==2)message=source==1?L"Your microphone is live":L"Discord friend is live";redraw();return 0;
- case WM_TIMER:{if(speaker&&monitor.state.load()==3){speaker=false;auto detail=monitor.message();monitor.stop();MessageBoxW(h,detail.c_str(),L"DISFORWARD · Speaker audio error",MB_OK|MB_ICONERROR);redraw();}RECT r{px(14),px(144),px(176),px(163)};InvalidateRect(h,&r,FALSE);return 0;}
+ case WM_TIMER:{if(speaker&&monitor.state.load()==3){speaker=false;auto detail=monitor.message();monitor.stop();MessageBoxW(h,detail.c_str(),L"DISFORWARD · Speaker audio error",MB_OK|MB_ICONERROR);redraw();}RECT r{px(14),px(183),px(176),px(205)};InvalidateRect(h,&r,FALSE);return 0;}
  case WM_CLOSE:save();monitor.stop();engine.stop();receiver.stop();DestroyWindow(h);return 0;case WM_DESTROY:PostQuitMessage(0);return 0;}
  return DefWindowProcW(h,m,w,l);
 }
@@ -134,14 +137,14 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR command,int show){
  wchar_t folder[MAX_PATH];SHGetFolderPathW(nullptr,CSIDL_LOCAL_APPDATA,nullptr,0,folder);ini=std::wstring(folder)+L"\\DISFORWARD";CreateDirectoryW(ini.c_str(),nullptr);ini+=L"\\settings.ini";
  field=CreateSolidBrush(RGB(18,21,26));uiFont=CreateFontW(-px(12),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
  WNDCLASSW wc{};wc.hInstance=instance;wc.lpszClassName=L"DisforwardNativeConsole";wc.lpfnWndProc=proc;wc.hbrBackground=field;wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(100));RegisterClassW(&wc);
- window=CreateWindowExW(WS_EX_APPWINDOW,wc.lpszClassName,L"DISFORWARD",WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,px(360),px(174),nullptr,nullptr,instance,nullptr);
+ window=CreateWindowExW(WS_EX_APPWINDOW,wc.lpszClassName,L"DISFORWARD",WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,px(360),px(208),nullptr,nullptr,instance,nullptr);
  button(L"PIN",110,222,10,40,24);button(L"SETUP",111,268,10,45,24);button(L"×",112,320,10,26,24);
  button(L"My Mic",101,14,94,104,39);button(L"Discord Friend",102,128,94,104,39);button(L"Mute",103,242,94,104,39);
- microphone=CreateWindowW(L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST,px(14),px(208),px(332),px(200),window,(HMENU)120,nullptr,nullptr);SendMessageW(microphone,WM_SETFONT,(WPARAM)uiFont,TRUE);
- button(L"SPEAKER",104,82,141,100,24);
- listening=CreateWindowW(L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST,px(14),px(266),px(332),px(200),window,(HMENU)121,nullptr,nullptr);SendMessageW(listening,WM_SETFONT,(WPARAM)uiFont,TRUE);
- button(L"Check audio lines",132,14,393,160,26);button(L"Install audio lines",131,186,393,160,26);
- button(L"Refresh",130,14,429,160,26);button(L"Sound settings",133,186,429,160,26);
+ microphone=CreateWindowW(L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST,px(14),px(244),px(332),px(200),window,(HMENU)120,nullptr,nullptr);SendMessageW(microphone,WM_SETFONT,(WPARAM)uiFont,TRUE);
+ button(L"SPEAKER",104,14,148,160,30);
+ listening=CreateWindowW(L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST,px(14),px(302),px(332),px(200),window,(HMENU)121,nullptr,nullptr);SendMessageW(listening,WM_SETFONT,(WPARAM)uiFont,TRUE);
+ button(L"Check audio lines",132,14,446,160,26);button(L"Install audio lines",131,186,446,160,26);
+ button(L"Refresh",130,14,482,160,26);button(L"Sound settings",133,186,482,160,26);
  if(preview){message=L"Interface preview · audio disabled";}else refresh();layout();ShowWindow(window,show);SetTimer(window,1,50,nullptr);
  MSG msg;while(GetMessageW(&msg,nullptr,0,0)>0){if(!IsDialogMessageW(window,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}
  DeleteObject(uiFont);DeleteObject(field);GdiplusShutdown(token);CoUninitialize();if(lock)CloseHandle(lock);return 0;

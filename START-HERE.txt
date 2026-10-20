@@ -1,4 +1,4 @@
-DISFORWARD 0.6.1 - independent Discord receive + SPEAKER
+DISFORWARD 0.6.2 - independent Discord receive + SPEAKER
 Windows x64. Extract the complete folder before running.
 
 FIRST SETUP
@@ -45,13 +45,20 @@ communications defaults. Driver installation can affect Windows device
 choices; keep application devices explicitly selected afterward.
 
 ECHO PREVENTION
-Keep Discord INPUT on the physical mic, never CABLE Output. The SPEAKER path
+Keep Discord INPUT on the physical mic, never CABLE Output.
+For PC speakers, turn ON Echo Cancellation in Discord Voice & Video.
+DISFORWARD cannot process the direct physical mic captured by Discord.
+If echo continues, use headphones or a separate echo-cancelled mic endpoint. The SPEAKER path
 carries Discord audio only; it never monitors your mic or the phone-call bus.
 Headphones prevent sound from physically re-entering the microphone. PC
 speakers near a live mic can still cause acoustic echo; software routing
 alone cannot guarantee cancellation of that sound.
 
 AUDIO QUALITY
+SPEAKER uses a media playback stream with supported RAW processing and opts
+out of Windows communications auto-ducking. Outputs below 44.1 kHz are
+rejected rather than silently using a narrow-band listening device. RAW
+bypasses optional effects only where supported, not always-on hardware DSP.
 48 kHz stereo float processing, shared WASAPI high-quality conversion,
 click-reducing source transitions and clock-drift compensation. No automatic
 noise gate, compression, gain boost or voice filtering alters the signal.
