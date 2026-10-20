@@ -1,6 +1,7 @@
 #ifndef UNICODE
 #define UNICODE
 #endif
+#include <initguid.h>
 #include <windows.h>
 #include <shellapi.h>
 #include <shlobj.h>

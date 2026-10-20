@@ -25,7 +25,7 @@ void box(Graphics &g,float x,float y,float w,float h,Color color){GraphicsPath p
 void redraw(){InvalidateRect(window,nullptr,FALSE);for(int id:{101,102,103,104,110})InvalidateRect(GetDlgItem(window,id),nullptr,FALSE);}
 std::wstring selectedMic(){int i=(int)SendMessageW(microphone,CB_GETCURSEL,0,0);return i>=0&&i<(int)microphones.size()?microphones[i].id:L"";}
 std::wstring selectedSpeaker(){int i=(int)SendMessageW(listening,CB_GETCURSEL,0,0);return i>=0&&i<(int)speakers.size()?speakers[i].id:L"";}
-void save(){if(!preview){WritePrivateProfileStringW(L"Devices",L"Mic",selectedMic().c_str(),ini.c_str());WritePrivateProfileStringW(L"Devices",L"Speaker",selectedSpeaker().c_str(),ini.c_str());}}
+void save(){if(!preview){if(!selectedMic().empty())WritePrivateProfileStringW(L"Devices",L"Mic",selectedMic().c_str(),ini.c_str());if(!selectedSpeaker().empty())WritePrivateProfileStringW(L"Devices",L"Speaker",selectedSpeaker().c_str(),ini.c_str());}}
 void listen(bool enabled){
  monitor.stop();speaker=false;
  if(preview){speaker=enabled;redraw();return;}
@@ -113,7 +113,7 @@ LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
   auto result=df::testVirtualLine(cableSend,cableMic,cancel);if(receive)result+=L"\n\nDiscord receive line:\n"+df::testVirtualLine(discordPlayback,discordCapture,cancel);if(cancel)CloseHandle(cancel);
   message=L"Muted · line check finished";MessageBoxW(h,result.c_str(),L"DISFORWARD · Audio line result",MB_OK|MB_ICONINFORMATION);break;
  }case 133:ShellExecuteW(h,L"open",L"control.exe",L"mmsys.cpl",nullptr,SW_SHOWNORMAL);break;}redraw();return 0;}
- case df::Engine::StateMessage:if(engine.state.load()==3){source=0;message=engine.message();MessageBoxW(h,message.c_str(),L"DISFORWARD audio error",MB_OK|MB_ICONERROR);}else if(engine.state.load()==2)message=source==1?L"Your microphone is live":L"Discord friend is live";redraw();return 0;
+ case df::Engine::StateMessage:if(engine.state.load()==3){source=0;message=engine.message();engine.stop();MessageBoxW(h,message.c_str(),L"DISFORWARD audio error",MB_OK|MB_ICONERROR);}else if(engine.state.load()==2)message=source==1?L"Your microphone is live":L"Discord friend is live";redraw();return 0;
  case WM_TIMER:{if(speaker&&monitor.state.load()==3){speaker=false;auto detail=monitor.message();monitor.stop();MessageBoxW(h,detail.c_str(),L"DISFORWARD · Speaker audio error",MB_OK|MB_ICONERROR);redraw();}RECT r{px(14),px(144),px(176),px(163)};InvalidateRect(h,&r,FALSE);return 0;}
  case WM_CLOSE:save();monitor.stop();engine.stop();DestroyWindow(h);return 0;case WM_DESTROY:PostQuitMessage(0);return 0;}
  return DefWindowProcW(h,m,w,l);

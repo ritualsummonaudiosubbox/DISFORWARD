@@ -141,6 +141,18 @@ std::vector<Endpoint> endpoints(EDataFlow flow){
     return result;
 }
 #ifdef DISFORWARD_AUDIO_TEST
+int probeEndpointTone(const std::wstring& id,double frequency,unsigned duration){
+ HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
+ struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
+ auto input=std::make_unique<Capture>();
+ if(FAILED(input->init(id,false,0,cancel))||FAILED(input->start()))return -1;
+ ToneDetector detector(frequency);std::atomic<unsigned long> faults{0};auto begin=GetTickCount64();
+ while(GetTickCount64()-begin<duration){
+  if(FAILED(input->drain(faults)))return -1;
+  float l=0,r=0;while(input->queue.pop(l,r))detector.sample(l);Sleep(2);
+ }
+ return detector.passed()?1:0;
+}
 int probeProcessTone(DWORD pid,double frequency,unsigned duration){
     HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
     struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
