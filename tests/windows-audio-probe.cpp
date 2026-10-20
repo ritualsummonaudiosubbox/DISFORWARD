@@ -1,6 +1,5 @@
 #include "../app/engine.h"
 #include "../app/receive_session.h"
-#include "../app/receive_names.h"
 #include <iostream>
 #include <cmath>
 namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);}
@@ -40,11 +39,6 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
   for(auto flow:{eRender,eCapture})for(const auto& e:df::endpoints(flow))std::wcout<<L"Endpoint "<<static_cast<int>(flow)<<L": "<<e.name<<L" | "<<e.driver<<L" | "<<e.container<<L"\n";
   std::wcerr<<L"FAIL: independent receive pair missing.\n";return 1;
  }
- HRESULT naming=S_OK;unsigned named=df::nameReceiveEndpoints(&naming);
- if(named!=2||!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture)||receivePlayback.name!=L"DISFORWARD Discord In (VB-Audio Hi-Fi Cable)"||receiveCapture.name!=L"DISFORWARD Discord Audio (VB-Audio Hi-Fi Cable)"){
-  std::wcerr<<L"FAIL: receive endpoint friendly-name write/readback (named "<<named<<L", HRESULT "<<std::hex<<static_cast<unsigned long>(naming)<<std::dec<<L").\n";return 1;
- }
- std::wcout<<L"PASS: two DISFORWARD receive endpoint labels applied; original vendor interface identities preserved.\n";
  auto before=defaults();
  auto issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Initial receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
  df::ReceiveSession session;issue=session.start(receivePlayback,receiveCapture);

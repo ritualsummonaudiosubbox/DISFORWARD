@@ -1,5 +1,4 @@
 #include "engine.h"
-#include "receive_names.h"
 #include "receive_session.h"
 #include <gdiplus.h>
 #include <shellapi.h>
@@ -45,7 +44,6 @@ void listen(bool enabled){
 void layout(){for(int id:{120,121,130,131,132,133})ShowWindow(GetDlgItem(window,id),setup?SW_SHOW:SW_HIDE);SetWindowPos(window,nullptr,0,0,px(360),px(setup?462:174),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);redraw();}
 void refresh(){
  save();engine.stop();monitor.stop();receiver.stop();speaker=false;source=0;cable=false;receive=false;microphones.clear();speakers.clear();SendMessageW(listening,CB_RESETCONTENT,0,0);SendMessageW(microphone,CB_RESETCONTENT,0,0);
- df::nameReceiveEndpoints();
  auto inputs=df::endpoints(eCapture),outputs=df::endpoints(eRender);
  cable=df::cablePair(outputs,inputs,cableSend,cableMic);
  receive=df::receivePair(outputs,inputs,discordPlayback,discordCapture);

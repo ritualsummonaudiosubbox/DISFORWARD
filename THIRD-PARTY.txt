@@ -22,6 +22,5 @@ it is not embedded, modified or redistributed in this package.
 https://vb-audio.com/Cable/
 https://download.vb-audio.com/Download_CABLE/HiFiCableAsioBridgeSetup_v1007.zip
 SHA256: 3ecf204bfd8579d36bb918f9856eb1eaddd49c75146f5e8a8f59dcb8375ae89a
-Only friendly Windows endpoint labels may be changed to DISFORWARD Discord In
-and DISFORWARD Discord Audio; the VB-Audio driver identity remains intact.
+The original vendor endpoint names and driver identities remain intact.
 License and professional/distributor terms apply separately to VB-Audio products.

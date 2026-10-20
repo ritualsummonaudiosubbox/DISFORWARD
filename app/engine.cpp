@@ -182,7 +182,7 @@ std::wstring receiveFormatIssue(const Endpoint& playback,const Endpoint& capture
  if(!valid)return L"Could not read the Discord receive formats.";
  return equal?L"":L"Hi-Fi Cable rates differ"+rates+L". In Sound settings, set both Hi-Fi Cable playback and recording devices to 48,000 Hz, then Refresh.";
 }
-bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
+bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||receiveCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
 bool sameCable(const Endpoint &a,const Endpoint &b){
     if(a.id==b.id)return true;
     if(upper(a.name)==L"DISFORWARD"&&upper(b.name)==L"DISFORWARD SEND")return true;

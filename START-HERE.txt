@@ -11,9 +11,9 @@ FIRST SETUP
    Choose your headphones/physical speakers under SPEAKER.
 3. In Discord Voice & Video:
    INPUT: your physical microphone.
-   OUTPUT: DISFORWARD Discord In (VB-Audio Hi-Fi Cable).
-   It may appear as Speakers (VB-Audio Hi-Fi Cable) or Hi-Fi Cable Input
-   before the friendly label is applied.
+   OUTPUT: Speakers (VB-Audio Hi-Fi Cable).
+   Some Windows versions display Hi-Fi Cable Input (VB-Audio Hi-Fi Cable).
+   Use the exact receive-device name shown in DISFORWARD Setup.
 4. In the phone/call-center app:
    MICROPHONE: CABLE Output (VB-Audio Virtual Cable).
    SPEAKERS: your normal headphones/physical speakers.

@@ -7,15 +7,15 @@ are neither changed nor used to select the routes.
 
 | Application setting | Device |
 | --- | --- |
-| Discord output | DISFORWARD Discord In (VB-Audio Hi-Fi Cable) |
+| Discord output | Speakers (VB-Audio Hi-Fi Cable) |
 | Discord input | Your physical microphone |
 | Call app microphone | CABLE Output (VB-Audio Virtual Cable) |
 | Call app playback | Your normal headphones/speakers |
 | DISFORWARD SPEAKER | Explicit headphones/speakers selection in Setup |
 
-The receive line may initially appear as **Hi-Fi Cable Input**. Its friendly
-label is updated when permissions allow; the original VB-Audio driver identity
-is preserved. Two independent vendor drivers are required: basic VB-CABLE for
+The receive line can also appear as **Hi-Fi Cable Input (VB-Audio Hi-Fi Cable)**.
+Setup displays the actual Windows name. Vendor device names and driver identities
+are preserved. Two independent vendor drivers are required: basic VB-CABLE for
 sending, Hi-Fi Cable for receiving. The basic cable's stereo/16-channel
 endpoints share one bus and are not used as two independent cables.
 
