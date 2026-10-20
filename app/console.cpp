@@ -58,7 +58,7 @@ void refresh(){
  for(auto &e:outputs){if(df::virtualCable(e))continue;SendMessageW(listening,CB_ADDSTRING,0,(LPARAM)e.name.c_str());if(e.id==savedSpeaker)current=(int)speakers.size();speakers.push_back(e);}
  if(current<0&&!speakers.empty())current=0;
  SendMessageW(listening,CB_SETCURSEL,current,0);
- message=cable&&receive?L"Muted · choose who speaks":L"Setup needed · install audio lines";redraw();
+ message=cable&&receive&&receiveIssue.empty()?L"Muted · choose who speaks":L"Setup needed · install audio lines";redraw();
 }
 void choose(int wanted){
  if(preview){source=wanted;message=wanted==1?L"Your microphone":wanted==2?L"Discord friend":L"Muted";redraw();return;}

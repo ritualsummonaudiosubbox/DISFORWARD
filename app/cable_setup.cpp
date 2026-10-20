@@ -57,7 +57,7 @@ int installSend(HINSTANCE instance){
 }
 
 int installReceive(){
- if(MessageBoxW(nullptr,L"Install a SECOND, independent VB-Audio Hi-Fi Cable for Discord?\n\nThis downloads the original installer from vb-audio.com. It creates a Hi-Fi Cable Input playback device for Discord and a paired recording device for DISFORWARD. Your existing CABLE Output remains the call app microphone.\n\nIn the original installer click Install, then restart Windows. Both Hi-Fi Cable endpoints must use the same sample rate (48,000 Hz recommended). Do not enable Windows Listen to this device or start ASIO Bridge.\n\nVB-Audio donationware; professional use requires the applicable vendor license.",L"DISFORWARD · Discord receive line",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)return 0;
+ if(MessageBoxW(nullptr,L"Install a SECOND, independent VB-Audio Hi-Fi Cable for Discord?\n\nThis downloads the original installer from vb-audio.com. It creates a Hi-Fi Cable Input playback device for Discord and a paired recording device for DISFORWARD. Your existing CABLE Output remains the call app microphone.\n\nIn the original installer click Install, then restart Windows. DISFORWARD negotiates matching 48 kHz receive streams. If a format is locked, close Discord playback and Refresh. Do not enable Windows Listen to this device or start ASIO Bridge.\n\nVB-Audio donationware; professional use requires the applicable vendor license.",L"DISFORWARD · Discord receive line",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)return 0;
  wchar_t folder[MAX_PATH];if(FAILED(SHGetFolderPathW(nullptr,CSIDL_PROGRAM_FILES,nullptr,0,folder)))return error(L"Could not locate Program Files.");
  std::wstring base=std::wstring(folder)+L"\\DISFORWARD";CreateDirectoryW(base.c_str(),nullptr);base+=L"\\Discord-Receive";CreateDirectoryW(base.c_str(),nullptr);
  std::wstring zip=base+L"\\HiFiCableAsioBridgeSetup_v1007.zip";
@@ -77,7 +77,7 @@ int installReceive(){
  if(!ShellExecuteExW(&info)||!info.hProcess)return error(L"Could not launch the original Hi-Fi Cable installer.");
  WaitForSingleObject(info.hProcess,INFINITE);CloseHandle(info.hProcess);
  HRESULT co=CoInitializeEx(nullptr,COINIT_MULTITHREADED);if(SUCCEEDED(co)){df::nameReceiveEndpoints();CoUninitialize();}
- MessageBoxW(nullptr,L"After a successful vendor installation, restart Windows and open DISFORWARD → Setup → Refresh.\n\nDiscord OUTPUT: DISFORWARD Discord In (or Hi-Fi Cable Input until renamed).\nCall app MICROPHONE: CABLE Output.\nDISFORWARD SPEAKER: choose your headphones or physical speakers.\n\nKeep Discord INPUT on your physical microphone. Do not choose CABLE Output there, or your friend will hear their own forwarded voice.\n\nThis message does not confirm installation; DISFORWARD checks the actual endpoints.",L"DISFORWARD · Finish",MB_OK|MB_ICONINFORMATION);return 0;
+ MessageBoxW(nullptr,L"After a successful vendor installation, restart Windows and open DISFORWARD → Setup → Refresh.\n\nDiscord OUTPUT: DISFORWARD Discord In (or Speakers / Hi-Fi Cable Input until renamed).\nCall app MICROPHONE: CABLE Output.\nDISFORWARD SPEAKER: choose your headphones or physical speakers.\n\nKeep Discord INPUT on your physical microphone. Do not choose CABLE Output there, or your friend will hear their own forwarded voice.\n\nThis message does not confirm installation; DISFORWARD checks the actual endpoints.",L"DISFORWARD · Finish",MB_OK|MB_ICONINFORMATION);return 0;
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR command,int){
  if(wcscmp(command,L"--receive")==0)return installReceive();

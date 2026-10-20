@@ -6,6 +6,9 @@ The app uses TWO independent VB-Audio transports:
 It does not create a kernel audio endpoint without the vendor driver.
 SPEAKER uses a second independent engine and an explicit physical output.
 The main source selection controls only the call send engine.
+Dedicated Hi-Fi stream anchors negotiate both active receive engines at 48 kHz
+with MATCH_FORMAT and verify GetCurrentSharedModeEnginePeriod. Persistent
+endpoint formats and Windows default device choices remain unchanged.
 
 MSVC builds use /W4 /WX. Portable tests cover audio FIFO/fades and device
 pair identity, independent cable separation and container mismatch.

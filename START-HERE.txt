@@ -12,14 +12,17 @@ FIRST SETUP
 3. In Discord Voice & Video:
    INPUT: your physical microphone.
    OUTPUT: DISFORWARD Discord In (VB-Audio Hi-Fi Cable).
-   It may appear as Hi-Fi Cable Input before the friendly label is applied.
+   It may appear as Speakers (VB-Audio Hi-Fi Cable) or Hi-Fi Cable Input
+   before the friendly label is applied.
 4. In the phone/call-center app:
    MICROPHONE: CABLE Output (VB-Audio Virtual Cable).
    SPEAKERS: your normal headphones/physical speakers.
    Keep the phone app microphone explicitly selected, not system default.
-5. Both Hi-Fi Cable endpoints must have the SAME default sample rate in
-   Windows Sound settings > device properties > Advanced. Use 48,000 Hz.
+5. DISFORWARD negotiates matching 48 kHz streams on the receive cable.
    Leave ASIO Bridge closed. Turn off Windows "Listen to this device".
+   If the app reports a format lock, close Discord playback and Refresh.
+   Fallback: set both Hi-Fi Cable endpoint formats to 48,000 Hz in Windows
+   Sound settings > device properties > Advanced, then Refresh.
 6. Before joining a live call, use Check audio lines, then a short test call.
 
 DAILY CONTROLS
@@ -56,7 +59,8 @@ Source/Discord/network/phone codec quality still determines final call quality.
 
 TROUBLESHOOTING
 Missing receive line: run the receive installer, restart, then Refresh.
-Hi-Fi Cable needs equal sample rates on its playback and recording endpoints.
+A receive format error: close Discord playback and ASIO Bridge, then Refresh.
+The app sets matching stream rates without rewriting default device formats.
 No speakers listed: connect headphones/speakers and Refresh.
 Do not disable driver-signing enforcement or Windows security to install.
 See VALIDATION.txt for exactly what was tested and its limits.

@@ -27,8 +27,11 @@ Hi-Fi Cable package directly from VB-Audio, verifies its checksum and opens the
 vendor installer. Restart Windows, open DISFORWARD, Setup, Refresh, then select
 your mic and listening device. Run **Check audio lines** before a live call.
 
-Set both Hi-Fi Cable endpoint default formats to the same sample rate (48 kHz
-recommended). ASIO Bridge and Windows "Listen to this device" should be off.
+DISFORWARD negotiates both receive engines at 48 kHz using the documented
+Windows stream-format API and keeps them active. It does not rewrite the
+persistent endpoint formats. If another client locks the format, close Discord
+playback/ASIO Bridge and Refresh; setting both endpoint defaults to 48 kHz is a
+fallback. ASIO Bridge and Windows "Listen to this device" should be off.
 Follow [START-HERE.txt](START-HERE.txt) for the complete setup.
 
 - **My Mic / Discord Friend / Mute** choose what the phone call hears.

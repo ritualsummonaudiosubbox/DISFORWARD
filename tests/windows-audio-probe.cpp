@@ -1,5 +1,6 @@
 #include "../app/engine.h"
 #include "../app/receive_session.h"
+#include "../app/receive_names.h"
 #include <iostream>
 #include <cmath>
 namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);}
@@ -39,11 +40,16 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
   for(auto flow:{eRender,eCapture})for(const auto& e:df::endpoints(flow))std::wcout<<L"Endpoint "<<static_cast<int>(flow)<<L": "<<e.name<<L" | "<<e.driver<<L" | "<<e.container<<L"\n";
   std::wcerr<<L"FAIL: independent receive pair missing.\n";return 1;
  }
+ unsigned named=df::nameReceiveEndpoints();
+ if(named!=2||!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture)||receivePlayback.name!=L"DISFORWARD Discord In (VB-Audio Hi-Fi Cable)"||receiveCapture.name!=L"DISFORWARD Discord Audio (VB-Audio Hi-Fi Cable)"){
+  std::wcerr<<L"FAIL: receive endpoint friendly-name write/readback (named "<<named<<L").\n";return 1;
+ }
+ std::wcout<<L"PASS: two DISFORWARD receive endpoint labels applied; original vendor interface identities preserved.\n";
  auto before=defaults();
  auto issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Initial receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
  df::ReceiveSession session;issue=session.start(receivePlayback,receiveCapture);
  if(!issue.empty()){std::wcerr<<issue<<L"\n";return 1;}
- issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Negotiated receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
+ std::wcout<<L"Active receive engines verified at 48,000 Hz through GetCurrentSharedModeEnginePeriod. Persistent default formats remain unchanged.\n";
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(receivePlayback,receiveCapture,cancel);if(cancel)CloseHandle(cancel);
  std::wcout<<L"Receive playback: "<<receivePlayback.name<<L" | "<<receivePlayback.driver<<L"\nReceive recording: "<<receiveCapture.name<<L" | "<<receiveCapture.driver<<L"\n"<<result<<L"\n";
  if(result.rfind(L"PASS:",0)!=0)return 1;
