@@ -40,9 +40,9 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
   for(auto flow:{eRender,eCapture})for(const auto& e:df::endpoints(flow))std::wcout<<L"Endpoint "<<static_cast<int>(flow)<<L": "<<e.name<<L" | "<<e.driver<<L" | "<<e.container<<L"\n";
   std::wcerr<<L"FAIL: independent receive pair missing.\n";return 1;
  }
- unsigned named=df::nameReceiveEndpoints();
+ HRESULT naming=S_OK;unsigned named=df::nameReceiveEndpoints(&naming);
  if(named!=2||!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture)||receivePlayback.name!=L"DISFORWARD Discord In (VB-Audio Hi-Fi Cable)"||receiveCapture.name!=L"DISFORWARD Discord Audio (VB-Audio Hi-Fi Cable)"){
-  std::wcerr<<L"FAIL: receive endpoint friendly-name write/readback (named "<<named<<L").\n";return 1;
+  std::wcerr<<L"FAIL: receive endpoint friendly-name write/readback (named "<<named<<L", HRESULT "<<std::hex<<static_cast<unsigned long>(naming)<<std::dec<<L").\n";return 1;
  }
  std::wcout<<L"PASS: two DISFORWARD receive endpoint labels applied; original vendor interface identities preserved.\n";
  auto before=defaults();
@@ -85,6 +85,7 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
 int wmain(int argc,wchar_t** argv){
  if(argc>1&&wcscmp(argv[1],L"--silent")==0){Sleep(14000);return 0;}
  HRESULT co=CoInitializeEx(nullptr,COINIT_MULTITHREADED);if(FAILED(co))return 2;
+ CoInitializeSecurity(nullptr,-1,nullptr,nullptr,RPC_C_AUTHN_LEVEL_DEFAULT,RPC_C_IMP_LEVEL_IMPERSONATE,nullptr,EOAC_NONE,nullptr);
  struct End{~End(){CoUninitialize();}} end;
  df::Endpoint send,mic;bool found=false;
  for(int i=0;i<40&&!found;++i){found=df::cablePair(df::endpoints(eRender),df::endpoints(eCapture),send,mic);if(!found)Sleep(250);}
