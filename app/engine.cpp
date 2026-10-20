@@ -159,19 +159,6 @@ int probeProcessTone(DWORD pid,double frequency,unsigned duration){
     return detector.passed()?1:0;
 }
 #endif
-bool cableIsDefaultPlayback(const Endpoint& cable){
-    Com<IMMDeviceEnumerator> en;
-    if(FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put())))return false;
-    for(auto role:{eConsole,eMultimedia,eCommunications}){
-        Com<IMMDevice> d;LPWSTR id=nullptr;
-        if(SUCCEEDED(en->GetDefaultAudioEndpoint(eRender,role,d.put()))&&SUCCEEDED(d->GetId(&id))){
-            const bool same=cable.id==id;CoTaskMemFree(id);if(same)return true;
-            Endpoint other;other.container=property(d.get(),PROPERTYKEY{{0x8c7ed206,0x3f8a,0x4827,{0xb3,0xab,0xae,0x9e,0x1f,0xae,0xfc,0x6c}},2});
-            if(!cable.container.empty()&&other.container==cable.container)return true;
-        }
-    }
-    return false;
-}
 bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
 bool sameCable(const Endpoint &a,const Endpoint &b){
     if(a.id==b.id)return true;

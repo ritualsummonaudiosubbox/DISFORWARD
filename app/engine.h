@@ -32,7 +32,6 @@ bool sameCable(const Endpoint &input,const Endpoint &output);
 bool virtualCable(const Endpoint &e);
 bool supportsProcessCapture();
 std::wstring hrMessage(HRESULT hr);
-bool cableIsDefaultPlayback(const Endpoint& cable);
 std::wstring testVirtualLine(const Endpoint& playback,const Endpoint& microphone,HANDLE cancel);
 struct RouteConfig {std::wstring mic,feed,output;DWORD pid=0;bool process=true;};
 class Engine {

@@ -1,4 +1,8 @@
-DISFORWARD 0.5 - Windows 11 x64
+DISFORWARD 0.5.1 - Windows 11 x64
+
+UPDATING FROM 0.5
+Close DISFORWARD and replace DISFORWARD.exe with the new EXE. Use your
+existing VB-CABLE installation; this patch does not need a driver reinstall.
 
 ONE-TIME SETUP
 1. Extract the complete download into a folder on your PC.
@@ -14,7 +18,8 @@ BEFORE YOUR FIRST CALL
 4. In the CALL APP, choose CABLE Output (VB-Audio Virtual Cable) as its ONE
    microphone input. If the cable was renamed previously, use the exact
    name displayed under Call app microphone input in DISFORWARD Setup.
-5. Keep Windows, Discord and call-app PLAYBACK on your headphones.
+5. Keep your existing call-app playback selection. DISFORWARD does not
+   require changing Windows default playback or communications devices.
    In Discord, keep INPUT on your own real microphone.
 6. Make a short test call before customer use.
 
@@ -30,16 +35,17 @@ You can hear your Discord friend in your headphones while they are forwarded.
 
 IMPORTANT AUDIO SELECTIONS
 Call-app microphone: CABLE Output (or the name displayed by DISFORWARD Setup).
+Call-app playback:   Keep your existing audible output device.
 Discord output:      Headphones. Do NOT choose CABLE Input.
 Discord input:       Your real microphone. Do NOT choose CABLE Output.
-Windows speakers:    Headphones, including default communications playback.
+Windows defaults:    Leave your regular playback/communications selections.
 
 CABLE Input is the playback side DISFORWARD writes into.
 CABLE Output is the microphone side your call app receives.
 Do not send other apps into CABLE Input or enable Windows 'Listen to this
  device' on the cable. Those routes can bypass DISFORWARD's Mute/source switch.
-The app checks whether the cable is your default playback device and asks
-for headphones to prevent accidental desktop/call audio feedback.
+DISFORWARD does not check, require, or change Windows default playback or
+communications devices. It sends only its selected source into the cable.
 
 DISCORD
 Use the desktop Discord app on Windows 11. Open it and join your friend's call,

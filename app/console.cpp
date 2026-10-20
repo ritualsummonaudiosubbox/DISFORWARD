@@ -39,7 +39,6 @@ void choose(int wanted){
  if(!wanted){engine.stop();source=0;message=L"Muted";redraw();return;}
  engine.stop();source=0;
  if(!cable){message=L"Setup needed · install VB-CABLE";setup=true;layout();return;}
- if(df::cableIsDefaultPlayback(cableSend)){message=L"Set Windows speakers to headphones";setup=true;layout();MessageBoxW(window,L"Windows is playing desktop or call audio into VB-CABLE. This can bypass Mute or cause feedback.\n\nIn Sound settings, set your default playback AND default communications playback device to your headphones or speakers. Keep Discord and your call app playback there too. Then select your source again.",L"DISFORWARD · Choose headphones",MB_OK|MB_ICONINFORMATION);return;}
  df::RouteConfig route;route.output=cableSend.id;route.process=wanted==2;
  if(wanted==1){route.mic=selectedMic();if(route.mic.empty()){message=L"Choose your microphone in Setup";setup=true;layout();return;}}
  else{

@@ -8,6 +8,10 @@ It includes the original vendor installer and keeps VB-CABLE's device names.
 The microphone selected in your call app is **CABLE Output**. A custom unsigned
 DISFORWARD driver is not installed or required.
 
+Version 0.5.1 removes the default-playback/communications-device restriction.
+Source selection no longer opens the warning or requires a Windows default
+change. The selected voice still reaches the CABLE Output microphone.
+
 ## Use
 
 1. Extract the package and run `DISFORWARD-Setup.exe` once. Install VB-CABLE
@@ -15,8 +19,8 @@ DISFORWARD driver is not installed or required.
 2. Open `DISFORWARD.exe`, open Setup and select your physical mic.
 3. Run **Check audio line** outside a live call.
 4. Select **CABLE Output (VB-Audio Virtual Cable)** in the call app as its mic.
-5. Keep Discord, Windows and call-app playback on headphones. Keep Discord
-   input on your physical mic.
+5. Keep your existing call-app playback selection and Windows default devices.
+   Keep Discord input on your physical mic.
 6. Press **My Mic**, **Discord Friend**, or **Mute**. **PIN** keeps the compact
    console topmost. Finish with a short test call before customer use.
 

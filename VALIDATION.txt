@@ -1,4 +1,9 @@
-DISFORWARD 0.5 - signed-driver compatibility version
+DISFORWARD 0.5.1 - signed-driver compatibility version
+
+PATCH
+- Removed the source-selection block that required changing Windows default
+  playback and communications devices. Cable routing and source capture are
+  unchanged. The app does not set system default devices.
 
 CHECKS
 - Windows build compiles the app and setup launcher with MSVC /W4 /WX.
