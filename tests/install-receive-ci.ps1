@@ -32,6 +32,12 @@ try {
  $sys=Join-Path $inf.DirectoryName vbaudio_hfvaio64_win7.sys
  signtool verify /kp /v /c $cat $sys
  if($LASTEXITCODE){throw 'Receive driver production signature verification failed'}
+ # Equivalent to consenting to this genuine vendor publisher in the Windows
+ # installation dialog, on this disposable CI VM only. Never install a root.
+ $signature=Get-AuthenticodeSignature $cat
+ if($signature.SignerCertificate.Thumbprint -ne '00859AAC6A54B8C1B3C139DE67846E64E7B82DB2'){throw 'Unexpected receive publisher certificate'}
+ $store=[Security.Cryptography.X509Certificates.X509Store]::new('TrustedPublisher','LocalMachine')
+ try{$store.Open('ReadWrite');$store.Add($signature.SignerCertificate)}finally{$store.Close()}
  ./install-vbcable-ci.exe $inf.FullName VBAudioHFVAIO
  if($LASTEXITCODE){throw 'Receive driver installation failed'}
 } finally { if(-not $p.HasExited){$p.Kill()} }

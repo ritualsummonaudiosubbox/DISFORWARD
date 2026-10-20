@@ -22,7 +22,7 @@ void label(Graphics &g,const std::wstring& s,float x,float y,float w,float h,flo
  FontFamily family(L"Segoe UI");Font font(&family,size,bold?FontStyleBold:FontStyleRegular,UnitPixel);SolidBrush brush(color);StringFormat f;f.SetTrimming(StringTrimmingEllipsisCharacter);f.SetFormatFlags(StringFormatFlagsNoWrap);f.SetLineAlignment(StringAlignmentCenter);if(centered)f.SetAlignment(StringAlignmentCenter);g.DrawString(s.c_str(),-1,&font,RectF(x,y,w,h),&f,&brush);
 }
 void box(Graphics &g,float x,float y,float w,float h,Color color){GraphicsPath path;const float d=std::min(12.f,std::min(w,h));path.AddArc(x,y,d,d,180,90);path.AddArc(x+w-d,y,d,d,270,90);path.AddArc(x+w-d,y+h-d,d,d,0,90);path.AddArc(x,y+h-d,d,d,90,90);path.CloseFigure();SolidBrush b(color);g.FillPath(&b,&path);}
-void redraw(){InvalidateRect(window,nullptr,FALSE);for(int id:{101,102,103,104,110})InvalidateRect(GetDlgItem(window,id),nullptr,FALSE);}
+void redraw(){SetWindowTextW(GetDlgItem(window,104),speaker?L"SPEAKER ON":L"SPEAKER OFF");InvalidateRect(window,nullptr,FALSE);for(int id:{101,102,103,104,110})InvalidateRect(GetDlgItem(window,id),nullptr,FALSE);}
 std::wstring selectedMic(){int i=(int)SendMessageW(microphone,CB_GETCURSEL,0,0);return i>=0&&i<(int)microphones.size()?microphones[i].id:L"";}
 std::wstring selectedSpeaker(){int i=(int)SendMessageW(listening,CB_GETCURSEL,0,0);return i>=0&&i<(int)speakers.size()?speakers[i].id:L"";}
 void save(){if(!preview){if(!selectedMic().empty())WritePrivateProfileStringW(L"Devices",L"Mic",selectedMic().c_str(),ini.c_str());if(!selectedSpeaker().empty())WritePrivateProfileStringW(L"Devices",L"Speaker",selectedSpeaker().c_str(),ini.c_str());}}
@@ -32,6 +32,8 @@ void listen(bool enabled){
  if(enabled){
   auto out=selectedSpeaker();
   if(!receive||out.empty()){MessageBoxW(window,L"Install the Discord receive line and choose your headphones or speakers in Setup.",L"DISFORWARD · Speaker",MB_OK|MB_ICONINFORMATION);setup=true;return;}
+  auto issue=df::receiveFormatIssue(discordPlayback,discordCapture);
+  if(!issue.empty()){MessageBoxW(window,issue.c_str(),L"DISFORWARD · Receive format",MB_OK|MB_ICONINFORMATION);setup=true;return;}
   df::RouteConfig route;route.process=false;route.feed=discordCapture.id;route.output=out;
   speaker=true;monitor.start(nullptr,route,2);
  }
@@ -63,6 +65,8 @@ void choose(int wanted){
  if(wanted==1){route.mic=selectedMic();if(route.mic.empty()){message=L"Choose your microphone in Setup";setup=true;layout();return;}}
  else{
   if(!receive){message=L"Install the Discord receive line";setup=true;layout();return;}
+  auto issue=df::receiveFormatIssue(discordPlayback,discordCapture);
+  if(!issue.empty()){message=L"Receive sample rates need attention";MessageBoxW(window,issue.c_str(),L"DISFORWARD · Receive format",MB_OK|MB_ICONINFORMATION);setup=true;layout();return;}
   route.feed=discordCapture.id;
  }
  save();source=wanted;message=L"Connecting…";engine.start(window,route,wanted);redraw();

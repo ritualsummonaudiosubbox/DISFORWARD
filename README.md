@@ -1,40 +1,51 @@
 # DISFORWARD
 
-A compact Windows 11 x64 console that switches your physical microphone or
-Discord's playback into one call-app microphone input.
+Compact Windows x64 console for forwarding your mic or Discord audio into one
+call-app microphone input. Version 0.6 adds an independent Discord receive line
+and **SPEAKER** monitoring. Windows default playback/communications settings
+are neither changed nor used to select the routes.
 
-This packaged version uses **VB-CABLE by VB-Audio**, with the user's approval.
-It includes the original vendor installer and keeps VB-CABLE's device names.
-The microphone selected in your call app is **CABLE Output**. A custom unsigned
-DISFORWARD driver is not installed or required.
+| Application setting | Device |
+| --- | --- |
+| Discord output | DISFORWARD Discord In (VB-Audio Hi-Fi Cable) |
+| Discord input | Your physical microphone |
+| Call app microphone | CABLE Output (VB-Audio Virtual Cable) |
+| Call app playback | Your normal headphones/speakers |
+| DISFORWARD SPEAKER | Explicit headphones/speakers selection in Setup |
 
-Version 0.5.1 removes the default-playback/communications-device restriction.
-Source selection no longer opens the warning or requires a Windows default
-change. The selected voice still reaches the CABLE Output microphone.
+The receive line may initially appear as **Hi-Fi Cable Input**. Its friendly
+label is updated when permissions allow; the original VB-Audio driver identity
+is preserved. Two independent vendor drivers are required: basic VB-CABLE for
+sending, Hi-Fi Cable for receiving. The basic cable's stereo/16-channel
+endpoints share one bus and are not used as two independent cables.
 
-## Use
+## Setup and controls
 
-1. Extract the package and run `DISFORWARD-Setup.exe` once. Install VB-CABLE
-   through its original installer and restart Windows. Skip if already installed.
-2. Open `DISFORWARD.exe`, open Setup and select your physical mic.
-3. Run **Check audio line** outside a live call.
-4. Select **CABLE Output (VB-Audio Virtual Cable)** in the call app as its mic.
-5. Keep your existing call-app playback selection and Windows default devices.
-   Keep Discord input on your physical mic.
-6. Press **My Mic**, **Discord Friend**, or **Mute**. **PIN** keeps the compact
-   console topmost. Finish with a short test call before customer use.
+Extract the complete download. Run `DISFORWARD-Setup.exe`; skip SEND if CABLE
+Output is already installed. The receive installer downloads the original
+Hi-Fi Cable package directly from VB-Audio, verifies its checksum and opens the
+vendor installer. Restart Windows, open DISFORWARD, Setup, Refresh, then select
+your mic and listening device. Run **Check audio lines** before a live call.
 
-Discord Friend captures the desktop Discord process tree, including call audio,
-notifications and streams. It does not isolate one named participant in a group
-call. Use a private call and turn off unwanted Discord sounds.
+Set both Hi-Fi Cable endpoint default formats to the same sample rate (48 kHz
+recommended). ASIO Bridge and Windows "Listen to this device" should be off.
+Follow [START-HERE.txt](START-HERE.txt) for the complete setup.
 
-`START-HERE.txt` contains the complete setup/troubleshooting guide. VB-CABLE is
-[donationware](https://vb-audio.com/Services/licensing.htm); donations are welcome,
-and its professional licensing terms apply to call-center/business use.
+- **My Mic / Discord Friend / Mute** choose what the phone call hears.
+- **SPEAKER** hears Discord independently, including while the phone is muted.
+- **PIN** keeps the 360 × 174 console topmost over normal/borderless windows.
+  Windows exclusive fullscreen and secure desktops can cover it.
+
+Only the Discord receive line reaches SPEAKER. Your microphone and the phone
+send bus are never selected as monitor inputs. Keep Discord input on the
+physical mic to prevent digital feedback. Headphones prevent speaker sound
+from re-entering a nearby microphone; acoustic echo cannot be ruled out when
+using physical speakers. Discord's selected output includes its call and other
+sounds, not one isolated named participant in a group call.
 
 ## Build and verification
 
-[Windows builds and packaged downloads](https://github.com/ritualsummonaudiosubbox/DISFORWARD/actions/workflows/windows.yml)
+[Windows builds](https://github.com/ritualsummonaudiosubbox/DISFORWARD/actions/workflows/windows.yml)
 
 Use x64 Visual Studio Developer PowerShell with Desktop C++ and Windows SDK:
 
@@ -42,19 +53,24 @@ Use x64 Visual Studio Developer PowerShell with Desktop C++ and Windows SDK:
 ./build-windows.ps1
 ```
 
-The build fetches the original VB-CABLE archive from the vendor, verifies its
-pinned SHA256, builds the two EXEs and packages the guides under
-`artifacts/DISFORWARD-Windows-x64`. No WDK is required for this version.
+The build verifies the pinned basic vendor archive, builds both EXEs with
+MSVC `/W4 /WX`, and packages the guides into
+`artifacts/DISFORWARD-Windows-x64`. No WDK is needed. App/setup EXEs are unsigned;
+the original vendor kernel packages are used without binary modification.
 
-CI checks source, audio logic, cable selection, Windows UI controls, the vendor
-kernel signature, and attempts a real driver/audio test on its disposable runner.
-`WINDOWS-AUDIO-CHECK.txt` records the audio attempt; `VALIDATION.txt` distinguishes
-these checks from the required live Discord/physical-microphone/call-app test.
+CI checks audio FIFO/fades, distinct cable identities, UI controls and kernel
+catalog signatures. Its disposable Windows runner installs both cables and
+checks real receive/send tone routing, muted-bus isolation, separate engine
+lifetimes and unchanged default endpoints. The listening lifecycle test uses
+a virtual test sink because the runner has no physical speakers. The packaged
+`WINDOWS-AUDIO-CHECK.txt` records the actual result. Real Discord, a physical
+headset and the customer phone app still require a live acceptance call.
 
-Audio uses 48 kHz stereo float32 WASAPI with quality sample-rate conversion and
-short switching fades. PIN works above normal/borderless windows; exclusive
-fullscreen and secure desktops are not guaranteed.
+Processing uses 48 kHz stereo float32 WASAPI with quality conversion, short
+source fades and clock-drift correction. No recording, network audio upload,
+automatic gain boost or voice filtering is performed.
 
-The earlier native driver source remains for future work. It is not part of this
-package; that separate implementation still needs Microsoft signing and kernel
-runtime testing. Its provenance/license are retained in `driver/`.
+[VB-Audio licensing](https://vb-audio.com/Services/licensing.htm) applies
+separately, including professional/distributor terms. See THIRD-PARTY.txt.
+Earlier custom-driver source remains in `driver/` for future development;
+it is not built or installed by this package.

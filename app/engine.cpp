@@ -171,6 +171,16 @@ int probeProcessTone(DWORD pid,double frequency,unsigned duration){
     return detector.passed()?1:0;
 }
 #endif
+std::wstring receiveFormatIssue(const Endpoint& playback,const Endpoint& capture){
+ Com<IAudioClient> out,in;
+ if(FAILED(clientFor(playback.id,out))||FAILED(clientFor(capture.id,in)))return L"Receive line unavailable. Restart Windows, then Refresh.";
+ WAVEFORMATEX *a=nullptr,*b=nullptr;HRESULT x=out->GetMixFormat(&a),y=in->GetMixFormat(&b);
+ bool valid=SUCCEEDED(x)&&SUCCEEDED(y)&&a&&b;
+ bool equal=valid&&a->nSamplesPerSec==b->nSamplesPerSec;
+ if(a)CoTaskMemFree(a);if(b)CoTaskMemFree(b);
+ if(!valid)return L"Could not read the Discord receive formats.";
+ return equal?L"":L"Hi-Fi Cable rates differ. In Sound settings, set both Hi-Fi Cable playback and recording devices to 48,000 Hz, then Refresh.";
+}
 bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
 bool sameCable(const Endpoint &a,const Endpoint &b){
     if(a.id==b.id)return true;
