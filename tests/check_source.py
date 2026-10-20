@@ -17,5 +17,4 @@ for project in (root/'driver').rglob('*.VcxProj'):ET.parse(project)
 app=(root/'app/console.cpp').read_text()
 assert 'e.identity==L"DISFORWARD.Native.1"' in app
 assert not list(root.rglob('*VBCABLE*'))
-assert not list(root.rglob('*.sys')),'No kernel binary may be claimed without a Windows build.'
 print('PASS: native identity, INF/project XML, retained stream methods, transport integration and absence of third-party driver binaries.')

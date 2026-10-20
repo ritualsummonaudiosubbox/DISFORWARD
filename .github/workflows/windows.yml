@@ -29,6 +29,7 @@ jobs:
         shell: pwsh
         run: |
           python tests/check_source.py
+          if ($LASTEXITCODE) { throw 'Source check failed' }
           cl /nologo /std:c++17 /EHsc /W4 /WX tests/native_pipe_test.cpp /Fe:native_pipe_test.exe
           if ($LASTEXITCODE) { throw 'Pipe test build failed' }
           ./native_pipe_test.exe
