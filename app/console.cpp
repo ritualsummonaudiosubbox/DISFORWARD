@@ -12,8 +12,8 @@ df::Engine engine;
 bool pinned=false,setup=false,preview=false;int source=0;float scale=1;
 std::wstring message=L"Muted",ini;
 std::vector<df::Endpoint> microphones;
-df::Endpoint nativeSend,nativeMic;
-bool native=false;
+df::Endpoint cableSend,cableMic;
+bool cable=false;
 int px(double n){return (int)std::lround(n*scale);}
 Color c(int r,int g,int b){return Color(255,static_cast<BYTE>(r),static_cast<BYTE>(g),static_cast<BYTE>(b));}
 void label(Graphics &g,const std::wstring& s,float x,float y,float w,float h,float size,Color color,bool bold=false,bool centered=false){
@@ -23,25 +23,24 @@ void box(Graphics &g,float x,float y,float w,float h,Color color){GraphicsPath p
 void redraw(){InvalidateRect(window,nullptr,FALSE);for(int id:{101,102,103,110})InvalidateRect(GetDlgItem(window,id),nullptr,FALSE);}
 std::wstring selectedMic(){int i=(int)SendMessageW(microphone,CB_GETCURSEL,0,0);return i>=0&&i<(int)microphones.size()?microphones[i].id:L"";}
 void save(){if(!preview)WritePrivateProfileStringW(L"Devices",L"Mic",selectedMic().c_str(),ini.c_str());}
-void layout(){for(int id:{120,130,131})ShowWindow(GetDlgItem(window,id),setup?SW_SHOW:SW_HIDE);SetWindowPos(window,nullptr,0,0,px(360),px(setup?282:174),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);redraw();}
+void layout(){for(int id:{120,130,131,132,133})ShowWindow(GetDlgItem(window,id),setup?SW_SHOW:SW_HIDE);SetWindowPos(window,nullptr,0,0,px(360),px(setup?366:174),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);redraw();}
 void refresh(){
- save();engine.stop();source=0;native=false;microphones.clear();SendMessageW(microphone,CB_RESETCONTENT,0,0);
- auto inputs=df::endpoints(eCapture),outputs=df::endpoints(eRender);bool out=false,in=false;
- for(auto &e:outputs)if(e.identity==L"DISFORWARD.Native.1"){nativeSend=e;out=true;break;}
- for(auto &e:inputs)if(e.identity==L"DISFORWARD.Native.1"){nativeMic=e;in=true;break;}
- native=out&&in;
+ save();engine.stop();source=0;cable=false;microphones.clear();SendMessageW(microphone,CB_RESETCONTENT,0,0);
+ auto inputs=df::endpoints(eCapture),outputs=df::endpoints(eRender);
+ cable=df::cablePair(outputs,inputs,cableSend,cableMic);
  wchar_t saved[4096]{};GetPrivateProfileStringW(L"Devices",L"Mic",L"",saved,4096,ini.c_str());int current=-1;
  for(auto &e:inputs){if(e.identity==L"DISFORWARD.Native.1"||df::virtualCable(e))continue;SendMessageW(microphone,CB_ADDSTRING,0,(LPARAM)e.name.c_str());if(e.id==saved)current=(int)microphones.size();microphones.push_back(e);}
  if(current<0&&!microphones.empty())current=0;
  SendMessageW(microphone,CB_SETCURSEL,current,0);
- message=native?L"Ready · choose who speaks":L"Native DISFORWARD driver is missing";redraw();
+ message=cable?L"Muted · choose who speaks":L"Setup needed · install VB-CABLE";redraw();
 }
 void choose(int wanted){
  if(preview){source=wanted;message=wanted==1?L"Your microphone":wanted==2?L"Discord friend":L"Muted";redraw();return;}
  if(!wanted){engine.stop();source=0;message=L"Muted";redraw();return;}
  engine.stop();source=0;
- if(!native){message=L"Native DISFORWARD driver is missing";setup=true;layout();return;}
- df::RouteConfig route;route.output=nativeSend.id;route.process=wanted==2;
+ if(!cable){message=L"Setup needed · install VB-CABLE";setup=true;layout();return;}
+ if(df::cableIsDefaultPlayback(cableSend)){message=L"Set Windows speakers to headphones";setup=true;layout();MessageBoxW(window,L"Windows is playing desktop or call audio into VB-CABLE. This can bypass Mute or cause feedback.\n\nIn Sound settings, set your default playback AND default communications playback device to your headphones or speakers. Keep Discord and your call app playback there too. Then select your source again.",L"DISFORWARD · Choose headphones",MB_OK|MB_ICONINFORMATION);return;}
+ df::RouteConfig route;route.output=cableSend.id;route.process=wanted==2;
  if(wanted==1){route.mic=selectedMic();if(route.mic.empty()){message=L"Choose your microphone in Setup";setup=true;layout();return;}}
  else{
   if(!df::supportsProcessCapture()){message=L"Discord capture needs Windows 11";redraw();return;}
@@ -54,9 +53,9 @@ void choose(int wanted){
  save();source=wanted;message=L"Connecting…";engine.start(window,route,wanted);redraw();
 }
 void install(){
- wchar_t path[32768];GetModuleFileNameW(nullptr,path,32768);std::wstring file=path;file.erase(file.find_last_of(L"\\/")+1);file+=L"DISFORWARD-Driver-Setup.exe";
- if(GetFileAttributesW(file.c_str())==INVALID_FILE_ATTRIBUTES){MessageBoxW(window,L"The native driver installer has not been built and signed in this development package. A production driver package must be built, Microsoft-signed and tested on Windows before this console can forward audio.\n\nNo third-party cable or renamed endpoint is used.",L"DISFORWARD · Native driver required",MB_OK|MB_ICONINFORMATION);return;}
- ShellExecuteW(window,L"runas",file.c_str(),nullptr,nullptr,SW_SHOWNORMAL);
+ wchar_t path[32768];GetModuleFileNameW(nullptr,path,32768);std::wstring file=path;file.erase(file.find_last_of(L"\\/")+1);file+=L"DISFORWARD-Setup.exe";
+ if(GetFileAttributesW(file.c_str())==INVALID_FILE_ATTRIBUTES){MessageBoxW(window,L"Extract the complete download first. DISFORWARD-Setup.exe must be beside DISFORWARD.exe.",L"DISFORWARD setup",MB_OK|MB_ICONERROR);return;}
+ if(reinterpret_cast<INT_PTR>(ShellExecuteW(window,L"runas",file.c_str(),nullptr,nullptr,SW_SHOWNORMAL))<=32)MessageBoxW(window,L"Setup could not start. Administrator approval is needed to install VB-CABLE.",L"DISFORWARD setup",MB_OK|MB_ICONINFORMATION);
 }
 HWND button(const wchar_t* s,int id,int x,int y,int w,int h){return CreateWindowW(L"BUTTON",s,WS_CHILD|WS_VISIBLE|WS_TABSTOP|BS_OWNERDRAW,px(x),px(y),px(w),px(h),window,(HMENU)(INT_PTR)id,nullptr,nullptr);}
 void paint(){
@@ -67,8 +66,10 @@ void paint(){
  label(g,L"One microphone input. One person at a time.",14,66,332,17,10,c(131,145,161));
  float p=static_cast<float>(engine.peak.load())/10000.f;float db=p>0?20*std::log10(p):-90;
  box(g,14,153,160,3,c(38,45,56));float amount=std::clamp((db+60)/60,0.f,1.f);if(amount>0)box(g,14,153,160*amount,3,db>=0?c(252,135,124):c(104,221,187));
- label(g,L"Output: DISFORWARD",194,141,152,22,10,c(131,145,161));
- if(setup){label(g,L"Your microphone",14,184,332,18,10,c(158,174,189));}
+ label(g,cable?L"Mic: "+cableMic.name.substr(0,cableMic.name.find(L" (")):L"Mic: not connected",194,141,152,22,10,c(131,145,161));
+ if(setup){label(g,L"Your microphone",14,184,332,18,10,c(158,174,189));
+ label(g,L"Call app microphone input",14,243,332,18,10,c(158,174,189));
+ label(g,cable?cableMic.name:L"Install VB-CABLE, restart, then Refresh",14,262,332,20,11,c(234,239,245),true);}
  }
  BitBlt(dc,0,0,r.right,r.bottom,mem,0,0,SRCCOPY);SelectObject(mem,prior);DeleteObject(bmp);DeleteDC(mem);EndPaint(window,&ps);
 }
@@ -84,7 +85,15 @@ LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  case WM_NCHITTEST:{POINT p{(short)LOWORD(l),(short)HIWORD(l)};ScreenToClient(h,&p);return p.y<px(37)&&p.x<px(210)?HTCAPTION:HTCLIENT;}
  case WM_DRAWITEM:draw((DRAWITEMSTRUCT*)l);return TRUE;
  case WM_COMMAND:{int id=LOWORD(w);if(id==120&&HIWORD(w)==CBN_SELCHANGE){engine.stop();source=0;message=L"Muted · microphone changed";save();redraw();return 0;}
- switch(id){case 101:choose(1);break;case 102:choose(2);break;case 103:choose(0);break;case 110:pinned=!pinned;SetWindowPos(h,pinned?HWND_TOPMOST:HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);setup=false;layout();break;case 111:setup=!setup;layout();break;case 112:SendMessageW(h,WM_CLOSE,0,0);break;case 130:refresh();break;case 131:install();break;}redraw();return 0;}
+ switch(id){case 101:choose(1);break;case 102:choose(2);break;case 103:choose(0);break;case 110:pinned=!pinned;SetWindowPos(h,pinned?HWND_TOPMOST:HWND_NOTOPMOST,0,0,0,0,SWP_NOMOVE|SWP_NOSIZE|SWP_NOACTIVATE);setup=false;layout();break;case 111:setup=!setup;layout();break;case 112:SendMessageW(h,WM_CLOSE,0,0);break;case 130:refresh();break;case 131:install();break;case 132:{
+  if(preview)break;
+  engine.stop();source=0;
+  if(!cable){message=L"Install VB-CABLE, then Refresh";redraw();break;}
+  if(MessageBoxW(h,L"Check the VB-CABLE playback-to-microphone path with a quiet 2-second test tone? Run this before joining a live call.\n\nThis test does not verify Discord or the call app.",L"DISFORWARD · Check audio line",MB_OKCANCEL|MB_ICONINFORMATION)!=IDOK)break;
+  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);
+  auto result=df::testVirtualLine(cableSend,cableMic,cancel);if(cancel)CloseHandle(cancel);
+  message=L"Muted · line check finished";MessageBoxW(h,result.c_str(),L"DISFORWARD · Audio line result",MB_OK|MB_ICONINFORMATION);break;
+ }case 133:ShellExecuteW(h,L"open",L"control.exe",L"mmsys.cpl",nullptr,SW_SHOWNORMAL);break;}redraw();return 0;}
  case df::Engine::StateMessage:if(engine.state.load()==3){source=0;message=engine.message();MessageBoxW(h,message.c_str(),L"DISFORWARD audio error",MB_OK|MB_ICONERROR);}else if(engine.state.load()==2)message=source==1?L"Your microphone is live":L"Discord friend is live";redraw();return 0;
  case WM_TIMER:{RECT r{px(14),px(144),px(176),px(163)};InvalidateRect(h,&r,FALSE);return 0;}
  case WM_CLOSE:save();engine.stop();DestroyWindow(h);return 0;case WM_DESTROY:PostQuitMessage(0);return 0;}
@@ -97,14 +106,15 @@ int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR command,int show){
  SetProcessDPIAware();HDC dc=GetDC(nullptr);scale=static_cast<float>(GetDeviceCaps(dc,LOGPIXELSX))/96.f;ReleaseDC(nullptr,dc);
  HRESULT co=CoInitializeEx(nullptr,COINIT_APARTMENTTHREADED);if(FAILED(co))return 1;
  GdiplusStartupInput start;ULONG_PTR token;if(GdiplusStartup(&token,&start,nullptr)!=Ok){CoUninitialize();return 1;}
- wchar_t folder[MAX_PATH];SHGetFolderPathW(nullptr,CSIDL_LOCAL_APPDATA,nullptr,0,folder);ini=std::wstring(folder)+L"\\DISFORWARD-native";CreateDirectoryW(ini.c_str(),nullptr);ini+=L"\\settings.ini";
+ wchar_t folder[MAX_PATH];SHGetFolderPathW(nullptr,CSIDL_LOCAL_APPDATA,nullptr,0,folder);ini=std::wstring(folder)+L"\\DISFORWARD";CreateDirectoryW(ini.c_str(),nullptr);ini+=L"\\settings.ini";
  field=CreateSolidBrush(RGB(18,21,26));uiFont=CreateFontW(-px(12),0,0,0,FW_NORMAL,FALSE,FALSE,FALSE,DEFAULT_CHARSET,0,0,CLEARTYPE_QUALITY,0,L"Segoe UI");
  WNDCLASSW wc{};wc.hInstance=instance;wc.lpszClassName=L"DisforwardNativeConsole";wc.lpfnWndProc=proc;wc.hbrBackground=field;wc.hCursor=LoadCursorW(nullptr,IDC_ARROW);wc.hIcon=LoadIconW(instance,MAKEINTRESOURCEW(100));RegisterClassW(&wc);
  window=CreateWindowExW(WS_EX_APPWINDOW,wc.lpszClassName,L"DISFORWARD",WS_POPUP|WS_SYSMENU|WS_MINIMIZEBOX|WS_CLIPCHILDREN,CW_USEDEFAULT,CW_USEDEFAULT,px(360),px(174),nullptr,nullptr,instance,nullptr);
  button(L"PIN",110,222,10,40,24);button(L"SETUP",111,268,10,45,24);button(L"×",112,320,10,26,24);
  button(L"My Mic",101,14,94,104,39);button(L"Discord Friend",102,128,94,104,39);button(L"Mute",103,242,94,104,39);
  microphone=CreateWindowW(L"COMBOBOX",L"",WS_CHILD|WS_TABSTOP|WS_VSCROLL|CBS_DROPDOWNLIST,px(14),px(208),px(332),px(200),window,(HMENU)120,nullptr,nullptr);SendMessageW(microphone,WM_SETFONT,(WPARAM)uiFont,TRUE);
- button(L"Refresh",130,14,245,104,26);button(L"Native driver setup",131,128,245,218,26);
+ button(L"Check audio line",132,14,293,160,26);button(L"Install VB-CABLE",131,186,293,160,26);
+ button(L"Refresh",130,14,329,160,26);button(L"Sound settings",133,186,329,160,26);
  if(preview){message=L"Interface preview · audio disabled";}else refresh();layout();ShowWindow(window,show);SetTimer(window,1,50,nullptr);
  MSG msg;while(GetMessageW(&msg,nullptr,0,0)>0){if(!IsDialogMessageW(window,&msg)){TranslateMessage(&msg);DispatchMessageW(&msg);}}
  DeleteObject(uiFont);DeleteObject(field);GdiplusShutdown(token);CoUninitialize();if(lock)CloseHandle(lock);return 0;

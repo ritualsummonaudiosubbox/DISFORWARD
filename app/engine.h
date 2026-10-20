@@ -14,6 +14,7 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include "route_devices.h"
 
 namespace df {
 template<class T> class Com {
@@ -24,7 +25,6 @@ public:
     T* get()const{return p;} T** put(){if(p){p->Release();p=nullptr;}return &p;}
     T* operator->()const{return p;} explicit operator bool()const{return p!=nullptr;}
 };
-struct Endpoint {std::wstring id,name,container,driver,identity;};
 struct Program {DWORD pid;std::wstring label,exe;};
 std::vector<Endpoint> endpoints(EDataFlow flow);
 std::vector<Program> programs();
@@ -32,6 +32,8 @@ bool sameCable(const Endpoint &input,const Endpoint &output);
 bool virtualCable(const Endpoint &e);
 bool supportsProcessCapture();
 std::wstring hrMessage(HRESULT hr);
+bool cableIsDefaultPlayback(const Endpoint& cable);
+std::wstring testVirtualLine(const Endpoint& playback,const Endpoint& microphone,HANDLE cancel);
 struct RouteConfig {std::wstring mic,feed,output;DWORD pid=0;bool process=true;};
 class Engine {
     HWND target=nullptr;

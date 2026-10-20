@@ -1,61 +1,76 @@
-DISFORWARD native implementation - 0.4 DEVELOPMENT SOURCE
+DISFORWARD 0.5 - Windows 11 x64
 
-THIS IS NOT A PRODUCTION INSTALLABLE RELEASE.
-The native driver and both EXEs now compile on a GitHub Windows runner using
-Microsoft SDK/WDK 10.0.28000.2526 and Visual Studio 2026. Windows generated the
-native catalog with no signability errors or warnings. CI artifacts include
-DisforwardAudio.sys, .inf and .cat, but remain UNSIGNED DEVELOPMENT builds.
-Microsoft signing and live Windows installation/audio tests are still required.
+ONE-TIME SETUP
+1. Extract the complete download into a folder on your PC.
+2. Open DISFORWARD-Setup.exe and approve the administrator prompt.
+3. In the original VB-CABLE installer, click Install Driver.
+4. Restart Windows after installation, as VB-Audio requires.
+   If VB-CABLE is already installed, skip installation and continue below.
 
-WHAT CHANGED
-- New native ROOT\DISFORWARD device and DisforwardAudio.sys package identity.
-- Intended recording endpoint: DISFORWARD; send endpoint: DISFORWARD Send.
-- Real per-adapter bounded 48 kHz stereo PCM32 transport replaces the Microsoft
-  sample's sine-wave capture. No VB-CABLE package, binary, install or renaming.
-- A private endpoint identity property is required by the app. A device merely
-  named DISFORWARD, including the old renamed VB-CABLE, is not accepted.
-- UI reduced to 360 x 174 logical pixels: My Mic / Discord Friend / Mute.
-  PIN keeps it topmost; Setup contains only your microphone, Refresh and native
-  driver setup. No output selector or third-party routing controls.
-- My Mic no longer depends on Discord being open. Only the selected input is
-  captured by this application. Mute releases the active stream after a fade.
-- Discord Friend detects a single Discord instance when pressed and captures
-  that process tree's rendered audio. It does not capture your own mic or the
-  entire desktop as its Discord source.
+BEFORE YOUR FIRST CALL
+1. Open DISFORWARD.exe. Click SETUP, then Refresh.
+2. Select your physical microphone under Your microphone.
+3. Click Check audio line while you are outside a live call.
+4. In the CALL APP, choose CABLE Output (VB-Audio Virtual Cable) as its ONE
+   microphone input. If the cable was renamed previously, use the exact
+   name displayed under Call app microphone input in DISFORWARD Setup.
+5. Keep Windows, Discord and call-app PLAYBACK on your headphones.
+   In Discord, keep INPUT on your own real microphone.
+6. Make a short test call before customer use.
 
-DISCORD LIMIT
-This captures Discord playback, including the friend in a private call, plus
-any notification, stream, soundboard or other person rendered by Discord.
-It does not isolate a named participant from a group call. Keep Discord speaker
-output on headphones and disable unwanted app sounds. No private Discord API,
-account token, DLL injection or user-account automation is used.
+DAILY USE
+My Mic          Your own microphone goes to the call app.
+Discord Friend  Desktop Discord playback goes to the call app.
+Mute            DISFORWARD releases the selected source after a short fade.
+PIN             Keeps the compact console above normal/borderless windows.
+SETUP           Microphone choice, line check, install, Refresh, sound settings.
 
-EXPECTED FLOW AFTER DRIVER BUILD, SIGNING AND VERIFICATION
-1. Install the properly signed native DISFORWARD driver package once.
-2. Select DISFORWARD as your call application's one microphone input.
-3. Leave Discord and call-app speakers on headphones.
-4. Open DISFORWARD, choose your physical mic in Setup and press My Mic or
-   Discord Friend. Mute sends no voice. Starts muted every time.
-Windows 11 x64 is the target (native sample INF minimum build 22000).
-Audio in the user-mode app is WASAPI float32; native transport is PCM32 at 48 kHz.
-Source switching may have a short interruption while the selected client opens.
-Topmost is for normal/borderless windows, not exclusive fullscreen/secure desktop.
+The application starts muted. Choose only one source at a time.
+You can hear your Discord friend in your headphones while they are forwarded.
 
-WINDOWS BUILD REQUIRED
-Use Visual Studio Desktop C++, matching Windows SDK and Windows Driver Kit.
-In Developer PowerShell run ./build-windows.ps1. It builds unsigned development
-artifacts only; it has been run by the Windows CI workflow.
-No script disables signature enforcement, changes Secure Boot or installs test
-certificates. The driver must be signed through the normal Windows driver
-release process before installation on production Windows systems.
-For driver testing, use an appropriately provisioned Windows driver test machine.
+IMPORTANT AUDIO SELECTIONS
+Call-app microphone: CABLE Output (or the name displayed by DISFORWARD Setup).
+Discord output:      Headphones. Do NOT choose CABLE Input.
+Discord input:       Your real microphone. Do NOT choose CABLE Output.
+Windows speakers:    Headphones, including default communications playback.
 
-WHY THE OLD EXE IS NOT THE FIX
-0.3 installed/reused and renamed standard VB-CABLE. That did not satisfy the
-requirement for a distinct DISFORWARD driver. This source package replaces that
-approach and has no VB-CABLE dependency. Do not treat the old 0.3 as compliant.
+CABLE Input is the playback side DISFORWARD writes into.
+CABLE Output is the microphone side your call app receives.
+Do not send other apps into CABLE Input or enable Windows 'Listen to this
+ device' on the cable. Those routes can bypass DISFORWARD's Mute/source switch.
+The app checks whether the cable is your default playback device and asks
+for headphones to prevent accidental desktop/call audio feedback.
 
-VALIDATION
-See VALIDATION.txt for actual executed tests and remaining release blockers.
-Microsoft sample provenance/license are in driver/UPSTREAM.txt and
- driver/LICENSE-MS-PL.txt. Derived driver source is provided under MS-PL.
+DISCORD
+Use the desktop Discord app on Windows 11. Open it and join your friend's call,
+then press Discord Friend. If several Discord installations are running,
+close the extra ones first. Browser Discord is not selected by this version.
+This captures ALL Discord playback: calls, notifications, streams and
+soundboards. Use a private call and disable unwanted Discord sounds.
+No Discord login, account token or bot is required.
+
+IF SETUP OR AUDIO FAILS
+- If the vendor installer offers Remove Driver, do not keep reinstalling it.
+  Restart first and click Refresh. For an intentionally clean reinstall,
+  follow the vendor's uninstall -> restart -> install -> restart procedure.
+- Confirm microphone privacy allows desktop apps in Windows Settings.
+- Set VB-CABLE levels above zero and ensure it is unmuted in Windows Sound.
+- Close exclusive-mode audio programs if a device is reported in use.
+- Check audio line verifies a quiet tone returns through the cable; it does
+  not verify Discord, your real microphone, or the remote call app.
+- If Windows blocks the signed vendor driver, use the official VB-Audio
+  support instructions. DISFORWARD never changes signing or Secure Boot.
+
+QUALITY AND COMPATIBILITY
+48 kHz stereo float32 WASAPI shared-mode routing, quality sample-rate
+conversion, short source fades and bounded buffers. Source switching can
+have a brief pause while Windows opens the selected source. No lossy codec
+is added by DISFORWARD. Incoming Discord/microphone quality is preserved
+as received; audio already compressed by Discord cannot be restored.
+PIN cannot guarantee an overlay above exclusive fullscreen or secure desktop.
+
+VB-CABLE is by VB-Audio: https://www.vb-cable.com/
+It is donationware; donations are welcome. For call-center/business use,
+follow the vendor's professional licensing terms:
+https://vb-audio.com/Services/licensing.htm
+See THIRD-PARTY.txt and VALIDATION.txt.

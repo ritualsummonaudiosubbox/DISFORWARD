@@ -15,6 +15,8 @@ assert 'DisforwardWrite(m_pDmaBuffer' in stream and 'DisforwardRead(m_pDmaBuffer
 for project in (root/'driver').rglob('*.vcxproj'):ET.parse(project)
 for project in (root/'driver').rglob('*.VcxProj'):ET.parse(project)
 app=(root/'app/console.cpp').read_text()
-assert 'e.identity==L"DISFORWARD.Native.1"' in app
-assert not list(root.rglob('*VBCABLE*'))
-print('PASS: native identity, INF/project XML, retained stream methods, transport integration and absence of third-party driver binaries.')
+assert 'df::cablePair(outputs,inputs,cableSend,cableMic)' in app
+assert 'route.output=cableSend.id' in app
+assert 'DISFORWARD-Setup.exe' in app
+
+print('PASS: native identity, INF/project XML, retained stream methods, legacy native transport and signed-cable console integration.')

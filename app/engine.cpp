@@ -129,7 +129,35 @@ std::vector<Endpoint> endpoints(EDataFlow flow){
     }
     return result;
 }
-bool virtualCable(const Endpoint &e){auto n=upper(e.name);return n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
+#ifdef DISFORWARD_AUDIO_TEST
+int probeProcessTone(DWORD pid,double frequency,unsigned duration){
+    HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
+    struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
+    auto input=std::make_unique<Capture>();
+    if(FAILED(input->init(L"",true,pid,cancel))||FAILED(input->start()))return -1;
+    ToneDetector detector(frequency);std::atomic<unsigned long> faults{0};auto begin=GetTickCount64();
+    while(GetTickCount64()-begin<duration){
+        if(FAILED(input->drain(faults)))return -1;
+        float l=0,r=0;while(input->queue.pop(l,r))detector.sample(l);
+        Sleep(2);
+    }
+    return detector.passed()?1:0;
+}
+#endif
+bool cableIsDefaultPlayback(const Endpoint& cable){
+    Com<IMMDeviceEnumerator> en;
+    if(FAILED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put())))return false;
+    for(auto role:{eConsole,eMultimedia,eCommunications}){
+        Com<IMMDevice> d;LPWSTR id=nullptr;
+        if(SUCCEEDED(en->GetDefaultAudioEndpoint(eRender,role,d.put()))&&SUCCEEDED(d->GetId(&id))){
+            const bool same=cable.id==id;CoTaskMemFree(id);if(same)return true;
+            Endpoint other;other.container=property(d.get(),PROPERTYKEY{{0x8c7ed206,0x3f8a,0x4827,{0xb3,0xab,0xae,0x9e,0x1f,0xae,0xfc,0x6c}},2});
+            if(!cable.container.empty()&&other.container==cable.container)return true;
+        }
+    }
+    return false;
+}
+bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
 bool sameCable(const Endpoint &a,const Endpoint &b){
     if(a.id==b.id)return true;
     if(upper(a.name)==L"DISFORWARD"&&upper(b.name)==L"DISFORWARD SEND")return true;
@@ -172,7 +200,7 @@ std::wstring hrMessage(HRESULT hr){
     case AUDCLNT_E_DEVICE_INVALIDATED:return L"An audio device disconnected or changed. Reconnect it, then refresh.";
     case AUDCLNT_E_UNSUPPORTED_FORMAT:return L"This device rejected 48 kHz float audio. Use a compatible shared-mode device.";
     case AUDCLNT_E_DEVICE_IN_USE:return L"Another app is using this device exclusively. Close its exclusive audio stream.";
-    default:return std::wstring(L"Audio could not start (")+code+L"). Check devices; check the native driver and Discord version.";
+    default:return std::wstring(L"Audio could not start (")+code+L"). Check devices; check VB-CABLE installation and Discord.";
     }
 }
 Engine::Engine(){stopEvent=CreateEventW(nullptr,TRUE,FALSE,nullptr);}
@@ -202,15 +230,15 @@ void Engine::run(RouteConfig config){
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
         auto checked=[&](HRESULT hr,const wchar_t* context){if(FAILED(hr)){if(WaitForSingleObject(stopEvent,0)!=WAIT_OBJECT_0)fail(hr,context);return false;}return true;};
         if(!checked(input->init(config.mic,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
-        if(!checked(clientFor(config.output,output),L"DISFORWARD native device"))return;
+        if(!checked(clientFor(config.output,output),L"VB-CABLE playback endpoint"))return;
         auto f=format();
-        if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"DISFORWARD native output"))return;
+        if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"VB-CABLE output"))return;
         if(!checked(output->GetService(__uuidof(IAudioRenderClient),(void**)render.put()),L"Output buffer"))return;
         output->GetService(__uuidof(IAudioClockAdjustment),(void**)clock.put());
         UINT32 frames=0;if(!checked(output->GetBufferSize(&frames),L"Output capacity"))return;
         bufferMs=(int)(frames*1000/48000);
         if(!checked(input->start(),isProgram?L"Discord playback":L"Your microphone"))return;
-        if(!checked(output->Start(),L"DISFORWARD native output"))return;
+        if(!checked(output->Start(),L"VB-CABLE output"))return;
         struct Stop{IAudioClient* client;~Stop(){client->Stop();client->Reset();}} outputStop{output.get()};
         Mmcss priority;SourceGate gate;
         state=2;PostMessageW(target,StateMessage,0,0);

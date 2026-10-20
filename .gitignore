@@ -9,3 +9,5 @@ artifacts/
 *.ilk
 *.res
 *.binlog
+
+third_party/

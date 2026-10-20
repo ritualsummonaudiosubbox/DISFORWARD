@@ -1,0 +1,4 @@
+#include <windows.h>
+1 RT_MANIFEST "installer.manifest"
+100 ICON "disforward.ico"
+200 RCDATA "../third_party/VBCABLE_Driver_Pack45.zip"

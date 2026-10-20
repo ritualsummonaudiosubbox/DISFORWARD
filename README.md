@@ -1,41 +1,56 @@
 # DISFORWARD
 
-A compact Windows microphone switcher for forwarding your microphone or Discord playback into one call-app microphone input.
+A compact Windows 11 x64 console that switches your physical microphone or
+Discord's playback into one call-app microphone input.
 
-**Development build — not a production-ready installer.** The native driver compiles with Microsoft's WDK, and Windows generates its catalog. The package still requires Microsoft driver signing and live Windows audio validation. An unsigned build cannot install normally on production Windows.
+This packaged version uses **VB-CABLE by VB-Audio**, with the user's approval.
+It includes the original vendor installer and keeps VB-CABLE's device names.
+The microphone selected in your call app is **CABLE Output**. A custom unsigned
+DISFORWARD driver is not installed or required.
 
-## Audio routing
+## Use
 
-- **My Mic** forwards the physical microphone selected in Setup.
-- **Discord Friend** captures the desktop Discord process tree's playback. Discord can continue playing through your headphones.
-- **Mute** closes the source stream after a brief fade. The app starts muted.
-- **PIN** keeps the 360 × 174 console topmost and collapses Setup. Normal and borderless windows are supported; exclusive fullscreen and secure desktop overlays are not guaranteed.
+1. Extract the package and run `DISFORWARD-Setup.exe` once. Install VB-CABLE
+   through its original installer and restart Windows. Skip if already installed.
+2. Open `DISFORWARD.exe`, open Setup and select your physical mic.
+3. Run **Check audio line** outside a live call.
+4. Select **CABLE Output (VB-Audio Virtual Cable)** in the call app as its mic.
+5. Keep Discord, Windows and call-app playback on headphones. Keep Discord
+   input on your physical mic.
+6. Press **My Mic**, **Discord Friend**, or **Mute**. **PIN** keeps the compact
+   console topmost. Finish with a short test call before customer use.
 
-The native driver has its own `ROOT\DISFORWARD` hardware identity, `DisforwardAudio` service, **DISFORWARD Send** playback endpoint, and **DISFORWARD** recording endpoint. It does not install, rename or depend on another virtual cable driver.
+Discord Friend captures the desktop Discord process tree, including call audio,
+notifications and streams. It does not isolate one named participant in a group
+call. Use a private call and turn off unwanted Discord sounds.
 
-After a signed driver has been installed and tested, choose **DISFORWARD** as the call application's microphone. Leave Discord and call-app playback on headphones. **DISFORWARD Send is reserved for the switcher**: selecting it directly as Discord's speaker bypasses the source buttons.
+`START-HERE.txt` contains the complete setup/troubleshooting guide. VB-CABLE is
+[donationware](https://vb-audio.com/Services/licensing.htm); donations are welcome,
+and its professional licensing terms apply to call-center/business use.
 
-Discord capture includes everything Discord plays: call participants, notifications, streams and soundboards. It cannot isolate one named participant in a group call. Use a private call and disable unwanted Discord sounds. No Discord account token or private API is used.
+## Build and verification
 
-## Build and download
+[Windows builds and packaged downloads](https://github.com/ritualsummonaudiosubbox/DISFORWARD/actions/workflows/windows.yml)
 
-[Windows build runs and development artifacts](https://github.com/ritualsummonaudiosubbox/DISFORWARD/actions/workflows/windows.yml)
-
-The workflow uses Visual Studio 2026 and pinned Microsoft SDK/WDK NuGet packages. It runs the source checks and PCM/source-switching tests, builds the native driver and both executables, and checks the UI in an audio-disabled preview. The uploaded artifact is explicitly named **DISFORWARD-UNSIGNED-DEVELOPMENT-x64**.
-
-For a local build, open x64 Visual Studio Developer PowerShell with Desktop C++ and the WDK Visual Studio component installed:
+Use x64 Visual Studio Developer PowerShell with Desktop C++ and Windows SDK:
 
 ```powershell
-nuget restore packages.config -PackagesDirectory packages -NonInteractive
 ./build-windows.ps1
 ```
 
-Output: `artifacts/UNSIGNED-DEVELOPMENT`. This contains the app, native driver setup, and driver INF/SYS/CAT. It is not a signed release. The installer requests administrator access and verifies the INF catalog before registering a device; Windows also enforces its normal installation policy.
+The build fetches the original VB-CABLE archive from the vendor, verifies its
+pinned SHA256, builds the two EXEs and packages the guides under
+`artifacts/DISFORWARD-Windows-x64`. No WDK is required for this version.
 
-## Audio format and validation
+CI checks source, audio logic, cable selection, Windows UI controls, the vendor
+kernel signature, and attempts a real driver/audio test on its disposable runner.
+`WINDOWS-AUDIO-CHECK.txt` records the audio attempt; `VALIDATION.txt` distinguishes
+these checks from the required live Discord/physical-microphone/call-app test.
 
-Target: Windows 11 x64. User-mode routing uses WASAPI at 48 kHz stereo float32; the native transport uses 48 kHz stereo PCM32. Source changes use a short fade and open only the selected capture source. There is no lossy codec in DISFORWARD, nor a claim that it can restore quality already lost in Discord or a microphone.
+Audio uses 48 kHz stereo float32 WASAPI with quality sample-rate conversion and
+short switching fades. PIN works above normal/borderless windows; exclusive
+fullscreen and secure desktops are not guaranteed.
 
-`VALIDATION.txt` records executed checks and remaining Windows installation/audio tests. Unit tests and compilation do not establish kernel-driver safety or prove an end-to-end call works. No production release is published until those checks are completed.
-
-Driver sample provenance and MS-PL license: `driver/UPSTREAM.txt` and `driver/LICENSE-MS-PL.txt`.
+The earlier native driver source remains for future work. It is not part of this
+package; that separate implementation still needs Microsoft signing and kernel
+runtime testing. Its provenance/license are retained in `driver/`.
