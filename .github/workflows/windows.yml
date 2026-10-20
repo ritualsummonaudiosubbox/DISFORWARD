@@ -69,6 +69,9 @@ jobs:
           }
           ./install-vbcable-ci.exe (Resolve-Path third_party/VB-CABLE/vbMmeCable64_win10.inf) 2>&1 | Tee-Object -FilePath $report -Append
           if ($LASTEXITCODE) { throw 'Vendor driver installation failed on runner' }
+          ./tests/install-receive-ci.ps1 2>&1 | Tee-Object -FilePath $report -Append
+          ./windows-audio-probe.exe --split 2>&1 | Tee-Object -FilePath $report -Append
+          if ($LASTEXITCODE) { throw 'Independent receive/send audio probe failed' }
           ./windows-audio-probe.exe 2>&1 | Tee-Object -FilePath $report -Append
           if ($LASTEXITCODE) { throw 'Live audio probe failed on runner' }
       - name: Record live audio outcome

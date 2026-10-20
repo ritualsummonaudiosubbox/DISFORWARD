@@ -31,6 +31,7 @@ std::vector<Program> programs();
 bool sameCable(const Endpoint &input,const Endpoint &output);
 bool virtualCable(const Endpoint &e);
 bool supportsProcessCapture();
+std::wstring receiveFormatIssue(const Endpoint& playback,const Endpoint& capture);
 std::wstring hrMessage(HRESULT hr);
 std::wstring testVirtualLine(const Endpoint& playback,const Endpoint& microphone,HANDLE cancel);
 struct RouteConfig {std::wstring mic,feed,output;DWORD pid=0;bool process=true;};

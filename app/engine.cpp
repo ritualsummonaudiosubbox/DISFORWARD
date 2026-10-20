@@ -141,6 +141,18 @@ std::vector<Endpoint> endpoints(EDataFlow flow){
     return result;
 }
 #ifdef DISFORWARD_AUDIO_TEST
+int probeEndpointTone(const std::wstring& id,double frequency,unsigned duration){
+ HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
+ struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
+ auto input=std::make_unique<Capture>();
+ if(FAILED(input->init(id,false,0,cancel))||FAILED(input->start()))return -1;
+ ToneDetector detector(frequency);std::atomic<unsigned long> faults{0};auto begin=GetTickCount64();
+ while(GetTickCount64()-begin<duration){
+  if(FAILED(input->drain(faults)))return -1;
+  float l=0,r=0;while(input->queue.pop(l,r))detector.sample(l);Sleep(2);
+ }
+ return detector.passed()?1:0;
+}
 int probeProcessTone(DWORD pid,double frequency,unsigned duration){
     HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
     struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
@@ -159,7 +171,18 @@ int probeProcessTone(DWORD pid,double frequency,unsigned duration){
     return detector.passed()?1:0;
 }
 #endif
-bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
+std::wstring receiveFormatIssue(const Endpoint& playback,const Endpoint& capture){
+ Com<IAudioClient> out,in;
+ if(FAILED(clientFor(playback.id,out))||FAILED(clientFor(capture.id,in)))return L"Receive line unavailable. Restart Windows, then Refresh.";
+ WAVEFORMATEX *a=nullptr,*b=nullptr;HRESULT x=out->GetMixFormat(&a),y=in->GetMixFormat(&b);
+ bool valid=SUCCEEDED(x)&&SUCCEEDED(y)&&a&&b;
+ bool equal=valid&&a->nSamplesPerSec==b->nSamplesPerSec;
+ std::wstring rates=valid?L" (playback "+std::to_wstring(a->nSamplesPerSec)+L", recording "+std::to_wstring(b->nSamplesPerSec)+L" Hz)":L"";
+ if(a)CoTaskMemFree(a);if(b)CoTaskMemFree(b);
+ if(!valid)return L"Could not read the Discord receive formats.";
+ return equal?L"":L"Hi-Fi Cable rates differ"+rates+L". In Sound settings, set both Hi-Fi Cable playback and recording devices to 48,000 Hz, then Refresh.";
+}
+bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||receiveCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
 bool sameCable(const Endpoint &a,const Endpoint &b){
     if(a.id==b.id)return true;
     if(upper(a.name)==L"DISFORWARD"&&upper(b.name)==L"DISFORWARD SEND")return true;
@@ -224,14 +247,15 @@ void Engine::run(RouteConfig config){
     {
     auto work=[&](){
         const int active=wanted.load();
-        const bool isProgram=active==2;
+        const bool isProgram=active==2&&config.process;
+        const auto inputId=active==2&&!config.process?config.feed:config.mic;
         auto input=std::make_unique<Capture>();
         Com<IAudioClient> output;Com<IAudioRenderClient> render;Com<IAudioClockAdjustment> clock;
         HANDLE program=nullptr;
         if(isProgram){program=OpenProcess(SYNCHRONIZE,FALSE,config.pid);if(!program){fail(HRESULT_FROM_WIN32(GetLastError()),L"Discord closed");return;}}
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
         auto checked=[&](HRESULT hr,const wchar_t* context){if(FAILED(hr)){if(WaitForSingleObject(stopEvent,0)!=WAIT_OBJECT_0)fail(hr,context);return false;}return true;};
-        if(!checked(input->init(config.mic,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
+        if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
         if(!checked(clientFor(config.output,output),L"VB-CABLE playback endpoint"))return;
         auto f=format();
         if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"VB-CABLE output"))return;

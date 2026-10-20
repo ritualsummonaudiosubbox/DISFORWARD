@@ -1,82 +1,67 @@
-DISFORWARD 0.5.1 - Windows 11 x64
+DISFORWARD 0.6 - independent Discord receive + SPEAKER
+Windows x64. Extract the complete folder before running.
 
-UPDATING FROM 0.5
-Close DISFORWARD and replace DISFORWARD.exe with the new EXE. Use your
-existing VB-CABLE installation; this patch does not need a driver reinstall.
+FIRST SETUP
+1. Close audio applications. Run DISFORWARD-Setup.exe as administrator.
+   Skip the SEND installation if CABLE Output is already present.
+   Install the independent VB-Audio Hi-Fi Cable receive line when offered.
+   The receive installer downloads from VB-Audio and needs internet access.
+   Use the original vendor Install button. Restart Windows after installation.
+2. Open DISFORWARD, Setup, Refresh. Choose your physical microphone.
+   Choose your headphones/physical speakers under SPEAKER.
+3. In Discord Voice & Video:
+   INPUT: your physical microphone.
+   OUTPUT: Speakers (VB-Audio Hi-Fi Cable).
+   Some Windows versions display Hi-Fi Cable Input (VB-Audio Hi-Fi Cable).
+   Use the exact receive-device name shown in DISFORWARD Setup.
+4. In the phone/call-center app:
+   MICROPHONE: CABLE Output (VB-Audio Virtual Cable).
+   SPEAKERS: your normal headphones/physical speakers.
+   Keep the phone app microphone explicitly selected, not system default.
+5. DISFORWARD negotiates matching 48 kHz streams on the receive cable.
+   Leave ASIO Bridge closed. Turn off Windows "Listen to this device".
+   If the app reports a format lock, close Discord playback and Refresh.
+   Fallback: set both Hi-Fi Cable endpoint formats to 48,000 Hz in Windows
+   Sound settings > device properties > Advanced, then Refresh.
+6. Before joining a live call, use Check audio lines, then a short test call.
 
-ONE-TIME SETUP
-1. Extract the complete download into a folder on your PC.
-2. Open DISFORWARD-Setup.exe and approve the administrator prompt.
-3. In the original VB-CABLE installer, click Install Driver.
-4. Restart Windows after installation, as VB-Audio requires.
-   If VB-CABLE is already installed, skip installation and continue below.
+DAILY CONTROLS
+My Mic          Phone call hears your mic only.
+Discord Friend  Phone call hears Discord only.
+Mute            Phone call hears neither source.
+SPEAKER         Hear Discord on the selected listening device independently
+                of all three phone controls. Lit means enabled.
+PIN             Compact always-on-top console. Works over normal/borderless
+                windows; Windows exclusive-fullscreen apps can cover it.
 
-BEFORE YOUR FIRST CALL
-1. Open DISFORWARD.exe. Click SETUP, then Refresh.
-2. Select your physical microphone under Your microphone.
-3. Click Check audio line while you are outside a live call.
-4. In the CALL APP, choose CABLE Output (VB-Audio Virtual Cable) as its ONE
-   microphone input. If the cable was renamed previously, use the exact
-   name displayed under Call app microphone input in DISFORWARD Setup.
-5. Keep your existing call-app playback selection. DISFORWARD does not
-   require changing Windows default playback or communications devices.
-   In Discord, keep INPUT on your own real microphone.
-6. Make a short test call before customer use.
+The app starts muted, with SPEAKER off. No audio is recorded or uploaded.
+Changing listening device restarts only listening. Changing mic stops sending.
+Refresh stops both routes. Re-select controls after Refresh.
 
-DAILY USE
-My Mic          Your own microphone goes to the call app.
-Discord Friend  Desktop Discord playback goes to the call app.
-Mute            DISFORWARD releases the selected source after a short fade.
-PIN             Keeps the compact console above normal/borderless windows.
-SETUP           Microphone choice, line check, install, Refresh, sound settings.
+NO WINDOWS DEFAULT-DEVICE CHANGES ARE REQUIRED
+Do not use the same cable for receive and send. The receive device above is
+independent of CABLE Output. The app does not set Windows playback or
+communications defaults. Driver installation can affect Windows device
+choices; keep application devices explicitly selected afterward.
 
-The application starts muted. Choose only one source at a time.
-You can hear your Discord friend in your headphones while they are forwarded.
+ECHO PREVENTION
+Keep Discord INPUT on the physical mic, never CABLE Output. The SPEAKER path
+carries Discord audio only; it never monitors your mic or the phone-call bus.
+Headphones prevent sound from physically re-entering the microphone. PC
+speakers near a live mic can still cause acoustic echo; software routing
+alone cannot guarantee cancellation of that sound.
 
-IMPORTANT AUDIO SELECTIONS
-Call-app microphone: CABLE Output (or the name displayed by DISFORWARD Setup).
-Call-app playback:   Keep your existing audible output device.
-Discord output:      Headphones. Do NOT choose CABLE Input.
-Discord input:       Your real microphone. Do NOT choose CABLE Output.
-Windows defaults:    Leave your regular playback/communications selections.
+AUDIO QUALITY
+48 kHz stereo float processing, shared WASAPI high-quality conversion,
+click-reducing source transitions and clock-drift compensation. No automatic
+noise gate, compression, gain boost or voice filtering alters the signal.
+Source/Discord/network/phone codec quality still determines final call quality.
 
-CABLE Input is the playback side DISFORWARD writes into.
-CABLE Output is the microphone side your call app receives.
-Do not send other apps into CABLE Input or enable Windows 'Listen to this
- device' on the cable. Those routes can bypass DISFORWARD's Mute/source switch.
-DISFORWARD does not check, require, or change Windows default playback or
-communications devices. It sends only its selected source into the cable.
-
-DISCORD
-Use the desktop Discord app on Windows 11. Open it and join your friend's call,
-then press Discord Friend. If several Discord installations are running,
-close the extra ones first. Browser Discord is not selected by this version.
-This captures ALL Discord playback: calls, notifications, streams and
-soundboards. Use a private call and disable unwanted Discord sounds.
-No Discord login, account token or bot is required.
-
-IF SETUP OR AUDIO FAILS
-- If the vendor installer offers Remove Driver, do not keep reinstalling it.
-  Restart first and click Refresh. For an intentionally clean reinstall,
-  follow the vendor's uninstall -> restart -> install -> restart procedure.
-- Confirm microphone privacy allows desktop apps in Windows Settings.
-- Set VB-CABLE levels above zero and ensure it is unmuted in Windows Sound.
-- Close exclusive-mode audio programs if a device is reported in use.
-- Check audio line verifies a quiet tone returns through the cable; it does
-  not verify Discord, your real microphone, or the remote call app.
-- If Windows blocks the signed vendor driver, use the official VB-Audio
-  support instructions. DISFORWARD never changes signing or Secure Boot.
-
-QUALITY AND COMPATIBILITY
-48 kHz stereo float32 WASAPI shared-mode routing, quality sample-rate
-conversion, short source fades and bounded buffers. Source switching can
-have a brief pause while Windows opens the selected source. No lossy codec
-is added by DISFORWARD. Incoming Discord/microphone quality is preserved
-as received; audio already compressed by Discord cannot be restored.
-PIN cannot guarantee an overlay above exclusive fullscreen or secure desktop.
-
-VB-CABLE is by VB-Audio: https://www.vb-cable.com/
-It is donationware; donations are welcome. For call-center/business use,
-follow the vendor's professional licensing terms:
-https://vb-audio.com/Services/licensing.htm
-See THIRD-PARTY.txt and VALIDATION.txt.
+TROUBLESHOOTING
+Missing receive line: run the receive installer, restart, then Refresh.
+A receive format error: close Discord playback and ASIO Bridge, then Refresh.
+The app sets matching stream rates without rewriting default device formats.
+No speakers listed: connect headphones/speakers and Refresh.
+Do not disable driver-signing enforcement or Windows security to install.
+See VALIDATION.txt for exactly what was tested and its limits.
+VB-Audio licensing/credit: see THIRD-PARTY.txt.
