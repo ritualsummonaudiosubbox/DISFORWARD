@@ -50,7 +50,6 @@ jobs:
           if ($LASTEXITCODE) { throw 'Audio probe build failed' }
       - name: Signed driver and live audio on disposable runner
         id: live_audio
-        continue-on-error: true
         shell: pwsh
         run: |
           $report = "${{ github.workspace }}/artifacts/DISFORWARD-Windows-x64/WINDOWS-AUDIO-CHECK.txt"
