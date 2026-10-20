@@ -1,34 +1,24 @@
-DISFORWARD 0.5.1 - signed-driver compatibility version
+DISFORWARD 0.6 - verification scope
 
-PATCH
-- Removed the source-selection block that required changing Windows default
-  playback and communications devices. Cable routing and source capture are
-  unchanged. The app does not set system default devices.
+The app uses TWO independent VB-Audio transports:
+- Hi-Fi Cable: Discord receive.
+- VB-CABLE: call app microphone send.
+It does not create a kernel audio endpoint without the vendor driver.
+SPEAKER uses a second independent engine and an explicit physical output.
+The main source selection controls only the call send engine.
 
-CHECKS
-- Windows build compiles the app and setup launcher with MSVC /W4 /WX.
-- Portable audio tests check FIFO order/overflow, silence, NaN/Inf, exclusive
-  source fades, 500,000 rapid-switch frames and transparent float passage.
-- Endpoint-selection tests check standard VB-CABLE identification, stereo
-  preference over the 16-channel endpoint, capture pairing, container mismatch,
-  legacy renamed endpoints and rejection of unrelated/native devices.
-- Windows UI preview checks launch/close, compact size, source commands,
-  Setup expansion and PIN/topmost enable/disable. Audio is disabled in preview.
-- The official vendor archive is pinned by SHA256 before building and checked
-  again by Setup before extraction. Its files are not patched or renamed.
-- The Windows build verifies the original driver with SignTool /kp and catalog.
-- CI attempts signed driver installation, a real WASAPI tone return, and
-  process-loopback inclusion/exclusion on the disposable Windows runner.
-  WINDOWS-AUDIO-CHECK.txt records that attempt's actual result; an unavailable
-  runner audio service or required restart is not counted as an audio pass.
+MSVC builds use /W4 /WX. Portable tests cover audio FIFO/fades and device
+pair identity, independent cable separation and container mismatch.
+UI preview checks compact size, source/SPEAKER controls, Setup and PIN.
+The original VB-CABLE archive checksum and kernel catalog are verified in CI.
+WINDOWS-AUDIO-CHECK.txt records the actual Windows audio integration results.
 
-BEFORE CUSTOMER USE
-Run Check audio line on your own Windows PC and complete a short live test
-call. No real Discord call, physical microphone, customer call application,
-exclusive fullscreen or your PC's driver installation has been tested here.
-Compilation, preview UI and tone tests do not prove those external connections.
+No test on a remote runner can establish zero issues on every Windows PC.
+Real Discord calls, physical mic/headphones, acoustic echo, customer call
+software and exclusive-fullscreen behavior require a live acceptance call.
+Run Check audio lines before that call. It plays short quiet generated tones;
+it does not verify external application device selections.
 
-The packaged app uses the signed VB-CABLE transport and does not require
-Microsoft signing of a custom DISFORWARD kernel driver. The app/setup EXEs
-are not code-signed. Windows administrator approval and a restart may be
-required by the original vendor driver installer.
+The DISFORWARD app/setup EXEs are not Authenticode-signed.
+The vendor installers remain original. Administrator rights and a restart
+may be required. No unsigned custom DISFORWARD kernel driver is installed.

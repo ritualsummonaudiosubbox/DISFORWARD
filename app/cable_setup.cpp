@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstring>
 #include <urlmon.h>
+#include "receive_names.h"
 namespace {
 std::wstring literal(const std::wstring& s){std::wstring r=L"'";for(auto c:s){r+=c;if(c==L'\'')r+=c;}return r+L"'";}
 bool original(const BYTE* bytes,DWORD length,bool hifi=false){
@@ -74,7 +75,8 @@ int installReceive(){
  std::wstring exe=base+L"\\HiFiCableAsioBridgeSetup.exe";SHELLEXECUTEINFOW info{};info.cbSize=sizeof(info);info.fMask=SEE_MASK_NOCLOSEPROCESS;info.lpFile=exe.c_str();info.lpDirectory=base.c_str();info.nShow=SW_SHOWNORMAL;
  if(!ShellExecuteExW(&info)||!info.hProcess)return error(L"Could not launch the original Hi-Fi Cable installer.");
  WaitForSingleObject(info.hProcess,INFINITE);CloseHandle(info.hProcess);
- MessageBoxW(nullptr,L"After a successful vendor installation, restart Windows and open DISFORWARD → Setup → Refresh.\n\nDiscord OUTPUT: Hi-Fi Cable Input.\nCall app MICROPHONE: CABLE Output.\nDISFORWARD SPEAKER: choose your headphones or physical speakers.\n\nKeep Discord INPUT on your physical microphone. Do not choose CABLE Output there, or your friend will hear their own forwarded voice.\n\nThis message does not confirm installation; DISFORWARD checks the actual endpoints.",L"DISFORWARD · Finish",MB_OK|MB_ICONINFORMATION);return 0;
+ HRESULT co=CoInitializeEx(nullptr,COINIT_MULTITHREADED);if(SUCCEEDED(co)){df::nameReceiveEndpoints();CoUninitialize();}
+ MessageBoxW(nullptr,L"After a successful vendor installation, restart Windows and open DISFORWARD → Setup → Refresh.\n\nDiscord OUTPUT: DISFORWARD Discord In (or Hi-Fi Cable Input until renamed).\nCall app MICROPHONE: CABLE Output.\nDISFORWARD SPEAKER: choose your headphones or physical speakers.\n\nKeep Discord INPUT on your physical microphone. Do not choose CABLE Output there, or your friend will hear their own forwarded voice.\n\nThis message does not confirm installation; DISFORWARD checks the actual endpoints.",L"DISFORWARD · Finish",MB_OK|MB_ICONINFORMATION);return 0;
 }
 int WINAPI wWinMain(HINSTANCE instance,HINSTANCE,LPWSTR command,int){
  if(wcscmp(command,L"--receive")==0)return installReceive();

@@ -7,39 +7,56 @@ jobs:
     steps:
       - shell: pwsh
         run: |
-          Invoke-WebRequest https://download.vb-audio.com/Download_CABLE/HiFiCableAsioBridgeSetup_v1007.zip -OutFile hifi.zip
+          Invoke-WebRequest https://download.vb-audio.com/Download_CABLE/HiFiCableAsioBridgeSetup_v1007.zip -OutFile hifi.zip -TimeoutSec 60
           if ((Get-FileHash hifi.zip).Hash -ne '3ecf204bfd8579d36bb918f9856eb1eaddd49c75146f5e8a8f59dcb8375ae89a') { throw 'Checksum' }
           Expand-Archive hifi.zip hifi
-          Add-Type -AssemblyName UIAutomationClient
-          Add-Type -AssemblyName UIAutomationTypes
           $p = Start-Process ./hifi/HiFiCableAsioBridgeSetup.exe -PassThru
           Start-Sleep -Seconds 3
-          $root = [System.Windows.Automation.AutomationElement]::RootElement
-          $condition = [System.Windows.Automation.PropertyCondition]::new([System.Windows.Automation.AutomationElement]::ProcessIdProperty,$p.Id)
-          $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,$condition)
-          foreach ($e in $all) { Write-Host "$($e.Current.Name) | $($e.Current.ControlType.ProgrammaticName) | $($e.Current.AutomationId)" }
           Add-Type -AssemblyName System.Drawing
-          Add-Type -AssemblyName System.Windows.Forms
-          $bounds = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
-          $img = [System.Drawing.Bitmap]::new($bounds.Width,$bounds.Height)
-          $g = [System.Drawing.Graphics]::FromImage($img)
-          $g.CopyFromScreen($bounds.Location,[System.Drawing.Point]::Empty,$bounds.Size)
-          $img.Save("$pwd/hifi.png")
-          foreach ($e in $all) {
-            if ($e.Current.Name -match '^Install$') {
-              Add-Type @'
+          Add-Type @'
           using System;
+          using System.Text;
           using System.Runtime.InteropServices;
-          public static class Click { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint m,IntPtr w,IntPtr l); }
-          '@
-                        [void][Click]::PostMessage([IntPtr]$e.Current.NativeWindowHandle,0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
-            }
+          public static class View {
+            public delegate bool Each(IntPtr h,IntPtr l);
+            [DllImport("user32.dll")] public static extern bool EnumWindows(Each f,IntPtr l);
+            [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr h,Each f,IntPtr l);
+            [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint p);
+            [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr h,StringBuilder s,int n);
+            [DllImport("user32.dll")] public static extern int GetDlgCtrlID(IntPtr h);
+            [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint f);
+            [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
+            [StructLayout(LayoutKind.Sequential)] public struct Rect {public int L,T,R,B;}
           }
-          Start-Sleep -Seconds 5
-          Get-ChildItem 'C:/Program Files','C:/Program Files (x86)' -Filter '*hfvaio*' -Recurse -ErrorAction SilentlyContinue | ForEach-Object { Write-Host $_.FullName; if ($_.Extension -eq '.inf') { Get-Content $_.FullName } }
-          Get-ChildItem 'C:/Program Files','C:/Program Files (x86)' -Filter readme.txt -Recurse -ErrorAction SilentlyContinue | Where-Object FullName -match 'VB|ASIO|HiFi' | ForEach-Object { Get-Content $_.FullName }
-          $all = $root.FindAll([System.Windows.Automation.TreeScope]::Descendants,[System.Windows.Automation.Condition]::TrueCondition)
-          foreach ($e in $all) { if ($e.Current.Name) { Write-Host "$($e.Current.Name) | $($e.Current.ControlType.ProgrammaticName) | $($e.Current.AutomationId)" } }
+          '@
+          $id = $p.Id
+          [View]::EnumWindows({param($h,$l)
+            [uint32]$ownerId=0
+            [void][View]::GetWindowThreadProcessId($h,[ref]$ownerId)
+            if ($ownerId -eq $id) {
+              $text = [Text.StringBuilder]::new(512)
+              [void][View]::GetWindowText($h,$text,512)
+              Write-Host "Window $h $text"
+              [View]::EnumChildWindows($h,{param($child,$param)
+                $caption = [Text.StringBuilder]::new(512)
+                [void][View]::GetWindowText($child,$caption,512)
+                Write-Host "Child $child ID=$([View]::GetDlgCtrlID($child)) $caption"
+                return $true
+              },[IntPtr]::Zero)
+              $r=[View+Rect]::new()
+              [void][View]::GetWindowRect($h,[ref]$r)
+              if ($r.R-$r.L -gt 100 -and $r.B-$r.T -gt 100) {
+                $img=[Drawing.Bitmap]::new($r.R-$r.L,$r.B-$r.T)
+                $g=[Drawing.Graphics]::FromImage($img)
+                $dc=$g.GetHdc()
+                [void][View]::PrintWindow($h,$dc,2)
+                $g.ReleaseHdc($dc)
+                $img.Save("$pwd/hifi.png")
+                $g.Dispose();$img.Dispose()
+              }
+            }
+            return $true
+          },[IntPtr]::Zero)
       - uses: actions/upload-artifact@v4
         with:
           name: hifi-probe
