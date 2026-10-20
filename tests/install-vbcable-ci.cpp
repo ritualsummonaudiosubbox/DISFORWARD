@@ -7,7 +7,12 @@
 int wmain(int argc,wchar_t** argv){
  if(argc<2||argc>3)return 2;
  SP_INF_SIGNER_INFO_W signer{};signer.cbSize=sizeof(signer);
- if(!SetupVerifyInfFileW(argv[1],nullptr,&signer)){std::wcerr<<L"Catalog verification failed: "<<GetLastError()<<L"\n";return 1;}
+ if(!SetupVerifyInfFileW(argv[1],nullptr,&signer)){
+  DWORD error=GetLastError();
+  // Documented SetupAPI success category for an Authenticode (non-WHQL)
+  // signed package whose publisher is already trusted. Other errors fail.
+  if(error!=ERROR_AUTHENTICODE_TRUSTED_PUBLISHER){std::wcerr<<L"Catalog verification failed: "<<error<<L"\n";return 1;}
+ }
  std::wcout<<L"Catalog verified. Signer: "<<signer.DigitalSigner<<L"\n";
  const GUID media={0x4d36e96c,0xe325,0x11ce,{0xbf,0xc1,0x08,0x00,0x2b,0xe1,0x03,0x18}};
  std::wstring hardware=argc==3?argv[2]:L"VBAudioVACWDM";

@@ -41,6 +41,13 @@ try {
  [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,111),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
  [void][NativeUi]::GetWindowRect($h,[ref]$r)
  if ($r.Bottom-$r.Top -le $height) { throw 'Setup panel did not expand' }
+ $panel=[System.Drawing.Bitmap]::new($r.Right-$r.Left,$r.Bottom-$r.Top)
+ $pg=[System.Drawing.Graphics]::FromImage($panel)
+ $pd=$pg.GetHdc()
+ try { if(-not [NativeUi]::PrintWindow($h,$pd,2)){throw 'Setup rendering failed'} }
+ finally { $pg.ReleaseHdc($pd) }
+ $panel.Save(([IO.Path]::ChangeExtension($Screenshot,$null))+'-setup.png',[Drawing.Imaging.ImageFormat]::Png)
+ $pg.Dispose();$panel.Dispose()
  [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,110),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
  if (([NativeUi]::GetWindowLong($h,-20) -band 8) -eq 0) { throw 'PIN did not enable topmost' }
  [void][NativeUi]::GetWindowRect($h,[ref]$r)
