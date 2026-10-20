@@ -1,4 +1,5 @@
 #include "../app/engine.h"
+#include "../app/receive_session.h"
 #include <iostream>
 #include <cmath>
 namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);}
@@ -39,6 +40,10 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
   std::wcerr<<L"FAIL: independent receive pair missing.\n";return 1;
  }
  auto before=defaults();
+ auto issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Initial receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
+ df::ReceiveSession session;issue=session.start(receivePlayback,receiveCapture);
+ if(!issue.empty()){std::wcerr<<issue<<L"\n";return 1;}
+ issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Negotiated receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(receivePlayback,receiveCapture,cancel);if(cancel)CloseHandle(cancel);
  std::wcout<<L"Receive playback: "<<receivePlayback.name<<L" | "<<receivePlayback.driver<<L"\nReceive recording: "<<receiveCapture.name<<L" | "<<receiveCapture.driver<<L"\n"<<result<<L"\n";
  if(result.rfind(L"PASS:",0)!=0)return 1;

@@ -177,9 +177,10 @@ std::wstring receiveFormatIssue(const Endpoint& playback,const Endpoint& capture
  WAVEFORMATEX *a=nullptr,*b=nullptr;HRESULT x=out->GetMixFormat(&a),y=in->GetMixFormat(&b);
  bool valid=SUCCEEDED(x)&&SUCCEEDED(y)&&a&&b;
  bool equal=valid&&a->nSamplesPerSec==b->nSamplesPerSec;
+ std::wstring rates=valid?L" (playback "+std::to_wstring(a->nSamplesPerSec)+L", recording "+std::to_wstring(b->nSamplesPerSec)+L" Hz)":L"";
  if(a)CoTaskMemFree(a);if(b)CoTaskMemFree(b);
  if(!valid)return L"Could not read the Discord receive formats.";
- return equal?L"":L"Hi-Fi Cable rates differ. In Sound settings, set both Hi-Fi Cable playback and recording devices to 48,000 Hz, then Refresh.";
+ return equal?L"":L"Hi-Fi Cable rates differ"+rates+L". In Sound settings, set both Hi-Fi Cable playback and recording devices to 48,000 Hz, then Refresh.";
 }
 bool virtualCable(const Endpoint &e){auto n=upper(e.name);return standardCable(e)||e.identity==L"DISFORWARD.Native.1"||n.find(L"CABLE")!=std::wstring::npos||n.find(L"DISFORWARD")!=std::wstring::npos||n.find(L"VIRTUAL")!=std::wstring::npos;}
 bool sameCable(const Endpoint &a,const Endpoint &b){

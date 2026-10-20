@@ -1,5 +1,6 @@
 #include "engine.h"
 #include "receive_names.h"
+#include "receive_session.h"
 #include <gdiplus.h>
 #include <shellapi.h>
 #include <shlobj.h>
@@ -10,6 +11,8 @@ using namespace Gdiplus;
 namespace {
 HWND window,microphone,listening;HFONT uiFont;HBRUSH field;
 df::Engine engine,monitor;
+df::ReceiveSession receiver;
+std::wstring receiveIssue;
 bool speaker=false,receive=false;
 bool pinned=false,setup=false,preview=false;int source=0;float scale=1;
 std::wstring message=L"Muted",ini;
@@ -32,7 +35,7 @@ void listen(bool enabled){
  if(enabled){
   auto out=selectedSpeaker();
   if(!receive||out.empty()){MessageBoxW(window,L"Install the Discord receive line and choose your headphones or speakers in Setup.",L"DISFORWARD · Speaker",MB_OK|MB_ICONINFORMATION);setup=true;return;}
-  auto issue=df::receiveFormatIssue(discordPlayback,discordCapture);
+  auto issue=receiveIssue;
   if(!issue.empty()){MessageBoxW(window,issue.c_str(),L"DISFORWARD · Receive format",MB_OK|MB_ICONINFORMATION);setup=true;return;}
   df::RouteConfig route;route.process=false;route.feed=discordCapture.id;route.output=out;
   speaker=true;monitor.start(nullptr,route,2);
@@ -41,11 +44,12 @@ void listen(bool enabled){
 }
 void layout(){for(int id:{120,121,130,131,132,133})ShowWindow(GetDlgItem(window,id),setup?SW_SHOW:SW_HIDE);SetWindowPos(window,nullptr,0,0,px(360),px(setup?462:174),SWP_NOMOVE|SWP_NOZORDER|SWP_NOACTIVATE);redraw();}
 void refresh(){
- save();engine.stop();monitor.stop();speaker=false;source=0;cable=false;receive=false;microphones.clear();speakers.clear();SendMessageW(listening,CB_RESETCONTENT,0,0);SendMessageW(microphone,CB_RESETCONTENT,0,0);
+ save();engine.stop();monitor.stop();receiver.stop();speaker=false;source=0;cable=false;receive=false;microphones.clear();speakers.clear();SendMessageW(listening,CB_RESETCONTENT,0,0);SendMessageW(microphone,CB_RESETCONTENT,0,0);
  df::nameReceiveEndpoints();
  auto inputs=df::endpoints(eCapture),outputs=df::endpoints(eRender);
  cable=df::cablePair(outputs,inputs,cableSend,cableMic);
  receive=df::receivePair(outputs,inputs,discordPlayback,discordCapture);
+ receiveIssue=receive?receiver.start(discordPlayback,discordCapture):L"Install the independent Discord receive line.";
  wchar_t saved[4096]{};GetPrivateProfileStringW(L"Devices",L"Mic",L"",saved,4096,ini.c_str());int current=-1;
  for(auto &e:inputs){if(e.identity==L"DISFORWARD.Native.1"||df::virtualCable(e))continue;SendMessageW(microphone,CB_ADDSTRING,0,(LPARAM)e.name.c_str());if(e.id==saved)current=(int)microphones.size();microphones.push_back(e);}
  if(current<0&&!microphones.empty())current=0;
@@ -65,7 +69,7 @@ void choose(int wanted){
  if(wanted==1){route.mic=selectedMic();if(route.mic.empty()){message=L"Choose your microphone in Setup";setup=true;layout();return;}}
  else{
   if(!receive){message=L"Install the Discord receive line";setup=true;layout();return;}
-  auto issue=df::receiveFormatIssue(discordPlayback,discordCapture);
+  auto issue=receiveIssue;
   if(!issue.empty()){message=L"Receive sample rates need attention";MessageBoxW(window,issue.c_str(),L"DISFORWARD · Receive format",MB_OK|MB_ICONINFORMATION);setup=true;layout();return;}
   route.feed=discordCapture.id;
  }
@@ -119,7 +123,7 @@ LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){
  }case 133:ShellExecuteW(h,L"open",L"control.exe",L"mmsys.cpl",nullptr,SW_SHOWNORMAL);break;}redraw();return 0;}
  case df::Engine::StateMessage:if(engine.state.load()==3){source=0;message=engine.message();engine.stop();MessageBoxW(h,message.c_str(),L"DISFORWARD audio error",MB_OK|MB_ICONERROR);}else if(engine.state.load()==2)message=source==1?L"Your microphone is live":L"Discord friend is live";redraw();return 0;
  case WM_TIMER:{if(speaker&&monitor.state.load()==3){speaker=false;auto detail=monitor.message();monitor.stop();MessageBoxW(h,detail.c_str(),L"DISFORWARD · Speaker audio error",MB_OK|MB_ICONERROR);redraw();}RECT r{px(14),px(144),px(176),px(163)};InvalidateRect(h,&r,FALSE);return 0;}
- case WM_CLOSE:save();monitor.stop();engine.stop();DestroyWindow(h);return 0;case WM_DESTROY:PostQuitMessage(0);return 0;}
+ case WM_CLOSE:save();monitor.stop();engine.stop();receiver.stop();DestroyWindow(h);return 0;case WM_DESTROY:PostQuitMessage(0);return 0;}
  return DefWindowProcW(h,m,w,l);
 }
 }
