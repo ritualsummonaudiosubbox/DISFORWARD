@@ -14,8 +14,8 @@ std::wstring message=L"Muted",ini;
 std::vector<df::Endpoint> microphones;
 df::Endpoint nativeSend,nativeMic;
 bool native=false;
-int px(float n){return (int)std::lround(n*scale);}
-Color c(int r,int g,int b){return Color(255,r,g,b);}
+int px(double n){return (int)std::lround(n*scale);}
+Color c(int r,int g,int b){return Color(255,static_cast<BYTE>(r),static_cast<BYTE>(g),static_cast<BYTE>(b));}
 void label(Graphics &g,const std::wstring& s,float x,float y,float w,float h,float size,Color color,bool bold=false,bool centered=false){
  FontFamily family(L"Segoe UI");Font font(&family,size,bold?FontStyleBold:FontStyleRegular,UnitPixel);SolidBrush brush(color);StringFormat f;f.SetTrimming(StringTrimmingEllipsisCharacter);f.SetFormatFlags(StringFormatFlagsNoWrap);f.SetLineAlignment(StringAlignmentCenter);if(centered)f.SetAlignment(StringAlignmentCenter);g.DrawString(s.c_str(),-1,&font,RectF(x,y,w,h),&f,&brush);
 }
@@ -76,7 +76,7 @@ void draw(DRAWITEMSTRUCT* d){Graphics g(d->hDC);g.ScaleTransform(scale,scale);g.
  int id=(int)d->CtlID;bool on=(id==101&&source==1)||(id==102&&source==2)||(id==103&&source==0)||(id==110&&pinned);Color bg=on&&id!=103?c(104,221,187):c(35,42,52),ink=on&&id!=103?c(18,21,26):c(234,239,245);
  if(d->itemState&ODS_SELECTED)bg=c(68,105,98);
  box(g,0,0,w,h,bg);
- wchar_t s[80];GetWindowTextW(d->hwndItem,s,80);label(g,s,2,0,w-4,h,id>=101&&id<=103?12:9,ink,true,true);
+ wchar_t s[80];GetWindowTextW(d->hwndItem,s,80);label(g,s,2,0,w-4,h,id>=101&&id<=103?12.f:9.f,ink,true,true);
  if(d->itemState&ODS_FOCUS){Pen p(ink);g.DrawRectangle(&p,2.f,2.f,w-5,h-5);}
 }
 LRESULT CALLBACK proc(HWND h,UINT m,WPARAM w,LPARAM l){switch(m){

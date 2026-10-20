@@ -18,7 +18,11 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -products * -property installationPath
           Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
           Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64'
-          Get-ChildItem Env: | ForEach-Object { "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
+          Get-ChildItem Env: | Where-Object { $_.Name -match '^(PATH|INCLUDE|LIB|LIBPATH|VC.*|VS.*|WindowsSDK.*|WindowsSdk.*|WindowsLibPath|UniversalCRT.*|UCRT.*|VisualStudioVersion|Framework.*|NETFXSDKDir)$' } | ForEach-Object { "$($_.Name)=$($_.Value)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8 }
+      - uses: actions/cache@v4
+        with:
+          path: packages
+          key: wdk-x64-${{ runner.os }}-${{ hashFiles('packages.config') }}
       - name: Restore Microsoft SDK and WDK
         run: nuget restore packages.config -PackagesDirectory packages -NonInteractive
       - name: Source and audio logic checks
@@ -36,6 +40,9 @@ jobs:
       - name: Build native driver and console
         shell: pwsh
         run: ./build-windows.ps1
+      - name: Windows UI smoke test
+        shell: pwsh
+        run: ./tests/windows-ui-smoke.ps1 -Exe ./artifacts/UNSIGNED-DEVELOPMENT/DISFORWARD.exe -Screenshot "${{ github.workspace }}/artifacts/UNSIGNED-DEVELOPMENT/UI-preview.png"
       - uses: actions/upload-artifact@v4
         with:
           name: DISFORWARD-UNSIGNED-DEVELOPMENT-x64

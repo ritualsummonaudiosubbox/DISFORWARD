@@ -29,9 +29,9 @@ Push-Location (Join-Path $root 'app')
 try {
     & rc.exe /nologo /fo (Join-Path $out 'app.res') app.rc
     if ($LASTEXITCODE -ne 0) { throw 'Console resources failed.' }
-    & cl.exe /nologo /std:c++17 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS console.cpp engine.cpp (Join-Path $out 'app.res') "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD.exe" /link /SUBSYSTEM:WINDOWS ole32.lib uuid.lib mmdevapi.lib avrt.lib gdiplus.lib shell32.lib gdi32.lib user32.lib
+    & cl.exe /nologo /std:c++17 /utf-8 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS console.cpp engine.cpp (Join-Path $out 'app.res') "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD.exe" /link /SUBSYSTEM:WINDOWS ole32.lib uuid.lib mmdevapi.lib avrt.lib gdiplus.lib shell32.lib gdi32.lib user32.lib
     if ($LASTEXITCODE -ne 0) { throw 'Console build failed.' }
-    & cl.exe /nologo /std:c++17 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS driver_setup.cpp "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD-Driver-Setup.exe" /link /SUBSYSTEM:WINDOWS setupapi.lib newdev.lib uuid.lib user32.lib
+    & cl.exe /nologo /std:c++17 /utf-8 /EHsc /O2 /MT /W4 /WX /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS driver_setup.cpp "/Fo$(Join-Path $out 'obj')\" "/Fe:$out\DISFORWARD-Driver-Setup.exe" /link /SUBSYSTEM:WINDOWS setupapi.lib newdev.lib uuid.lib user32.lib
     if ($LASTEXITCODE -ne 0) { throw 'Driver installer build failed.' }
 } finally { Pop-Location }
 @'
