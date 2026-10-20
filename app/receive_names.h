@@ -13,11 +13,12 @@ inline unsigned nameReceiveEndpoints(){
   UINT count=0;collection->GetCount(&count);
   for(UINT i=0;i<count;++i){
    Com<IMMDevice> device;Com<IPropertyStore> properties;
-   if(FAILED(collection->Item(i,device.put()))||FAILED(device->OpenPropertyStore(STGM_READWRITE,properties.put())))continue;
+   if(FAILED(collection->Item(i,device.put()))||FAILED(device->OpenPropertyStore(STGM_READ,properties.put())))continue;
    PROPVARIANT vendor;PropVariantInit(&vendor);
    if(FAILED(properties->GetValue(PKEY_DeviceInterface_FriendlyName,&vendor)))continue;
    bool hifi=vendor.vt==VT_LPWSTR&&upperName(vendor.pwszVal)==L"VB-AUDIO HI-FI CABLE";
    PropVariantClear(&vendor);if(!hifi)continue;
+   if(FAILED(device->OpenPropertyStore(STGM_READWRITE,properties.put())))continue;
    PROPVARIANT name;PropVariantInit(&name);name.vt=VT_LPWSTR;
    name.pwszVal=const_cast<LPWSTR>(flow==eRender?L"DISFORWARD Discord In (VB-Audio Hi-Fi Cable)":L"DISFORWARD Discord Audio (VB-Audio Hi-Fi Cable)");
    if(SUCCEEDED(properties->SetValue(PKEY_Device_FriendlyName,name))&&SUCCEEDED(properties->Commit()))++named;
