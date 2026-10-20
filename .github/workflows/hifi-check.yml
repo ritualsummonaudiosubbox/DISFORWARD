@@ -27,7 +27,12 @@ jobs:
           $img.Save("$pwd/hifi.png")
           foreach ($e in $all) {
             if ($e.Current.Name -match '^Install$') {
-              try { $e.GetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern).Invoke() } catch { Write-Host $_ }
+              Add-Type @'
+          using System;
+          using System.Runtime.InteropServices;
+          public static class Click { [DllImport("user32.dll")] public static extern bool PostMessage(IntPtr h,uint m,IntPtr w,IntPtr l); }
+          '@
+                        [void][Click]::PostMessage([IntPtr]$e.Current.NativeWindowHandle,0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
             }
           }
           Start-Sleep -Seconds 5

@@ -224,14 +224,15 @@ void Engine::run(RouteConfig config){
     {
     auto work=[&](){
         const int active=wanted.load();
-        const bool isProgram=active==2;
+        const bool isProgram=active==2&&config.process;
+        const auto inputId=active==2&&!config.process?config.feed:config.mic;
         auto input=std::make_unique<Capture>();
         Com<IAudioClient> output;Com<IAudioRenderClient> render;Com<IAudioClockAdjustment> clock;
         HANDLE program=nullptr;
         if(isProgram){program=OpenProcess(SYNCHRONIZE,FALSE,config.pid);if(!program){fail(HRESULT_FROM_WIN32(GetLastError()),L"Discord closed");return;}}
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
         auto checked=[&](HRESULT hr,const wchar_t* context){if(FAILED(hr)){if(WaitForSingleObject(stopEvent,0)!=WAIT_OBJECT_0)fail(hr,context);return false;}return true;};
-        if(!checked(input->init(config.mic,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
+        if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
         if(!checked(clientFor(config.output,output),L"VB-CABLE playback endpoint"))return;
         auto f=format();
         if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"VB-CABLE output"))return;

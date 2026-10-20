@@ -27,7 +27,7 @@ try {
  [void][NativeUi]::GetWindowRect($h,[ref]$r)
  $width=$r.Right-$r.Left; $height=$r.Bottom-$r.Top
  if ([Math]::Abs($width/$height-360.0/174.0) -gt 0.03) { throw "Unexpected compact window size: $width x $height" }
- foreach ($id in @(101,102,103,110,111,112,120,130,131,132,133)) {
+ foreach ($id in @(101,102,103,104,121,110,111,112,120,130,131,132,133)) {
   if ([NativeUi]::GetDlgItem($h,$id) -eq [IntPtr]::Zero) { throw "Missing control $id" }
  }
  $bitmap = New-Object System.Drawing.Bitmap($width,$height)
@@ -37,7 +37,7 @@ try {
  finally { $graphics.ReleaseHdc($dc) }
  $bitmap.Save($Screenshot,[System.Drawing.Imaging.ImageFormat]::Png)
  $graphics.Dispose(); $bitmap.Dispose()
- foreach ($id in @(101,102,103)) { [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,$id),0xF5,[IntPtr]::Zero,[IntPtr]::Zero) }
+ foreach ($id in @(101,102,103,104,104)) { [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,$id),0xF5,[IntPtr]::Zero,[IntPtr]::Zero) }
  [void][NativeUi]::SendMessage([NativeUi]::GetDlgItem($h,111),0xF5,[IntPtr]::Zero,[IntPtr]::Zero)
  [void][NativeUi]::GetWindowRect($h,[ref]$r)
  if ($r.Bottom-$r.Top -le $height) { throw 'Setup panel did not expand' }
