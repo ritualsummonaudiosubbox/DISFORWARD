@@ -1,9 +1,11 @@
 DISFORWARD native implementation - 0.4 DEVELOPMENT SOURCE
 
-THIS IS NOT A WORKING INSTALLABLE RELEASE.
-The native driver source exists but has NOT been compiled, signed or run on
-Windows. No DisforwardAudio.sys or signed driver catalog is included. The
-build/ EXEs are development frontend/installer builds, not a completed product.
+THIS IS NOT A PRODUCTION INSTALLABLE RELEASE.
+The native driver and both EXEs now compile on a GitHub Windows runner using
+Microsoft SDK/WDK 10.0.28000.2526 and Visual Studio 2026. Windows generated the
+native catalog with no signability errors or warnings. CI artifacts include
+DisforwardAudio.sys, .inf and .cat, but remain UNSIGNED DEVELOPMENT builds.
+Microsoft signing and live Windows installation/audio tests are still required.
 
 WHAT CHANGED
 - New native ROOT\DISFORWARD device and DisforwardAudio.sys package identity.
@@ -42,7 +44,7 @@ Topmost is for normal/borderless windows, not exclusive fullscreen/secure deskto
 WINDOWS BUILD REQUIRED
 Use Visual Studio Desktop C++, matching Windows SDK and Windows Driver Kit.
 In Developer PowerShell run ./build-windows.ps1. It builds unsigned development
-artifacts only; the script itself has not run in this Linux environment.
+artifacts only; it has been run by the Windows CI workflow.
 No script disables signature enforcement, changes Secure Boot or installs test
 certificates. The driver must be signed through the normal Windows driver
 release process before installation on production Windows systems.

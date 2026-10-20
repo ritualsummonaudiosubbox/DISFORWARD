@@ -19,7 +19,7 @@ Color c(int r,int g,int b){return Color(255,static_cast<BYTE>(r),static_cast<BYT
 void label(Graphics &g,const std::wstring& s,float x,float y,float w,float h,float size,Color color,bool bold=false,bool centered=false){
  FontFamily family(L"Segoe UI");Font font(&family,size,bold?FontStyleBold:FontStyleRegular,UnitPixel);SolidBrush brush(color);StringFormat f;f.SetTrimming(StringTrimmingEllipsisCharacter);f.SetFormatFlags(StringFormatFlagsNoWrap);f.SetLineAlignment(StringAlignmentCenter);if(centered)f.SetAlignment(StringAlignmentCenter);g.DrawString(s.c_str(),-1,&font,RectF(x,y,w,h),&f,&brush);
 }
-void box(Graphics &g,float x,float y,float w,float h,Color color){GraphicsPath path;constexpr float d=12;path.AddArc(x,y,d,d,180,90);path.AddArc(x+w-d,y,d,d,270,90);path.AddArc(x+w-d,y+h-d,d,d,0,90);path.AddArc(x,y+h-d,d,d,90,90);path.CloseFigure();SolidBrush b(color);g.FillPath(&b,&path);}
+void box(Graphics &g,float x,float y,float w,float h,Color color){GraphicsPath path;const float d=std::min(12.f,std::min(w,h));path.AddArc(x,y,d,d,180,90);path.AddArc(x+w-d,y,d,d,270,90);path.AddArc(x+w-d,y+h-d,d,d,0,90);path.AddArc(x,y+h-d,d,d,90,90);path.CloseFigure();SolidBrush b(color);g.FillPath(&b,&path);}
 void redraw(){InvalidateRect(window,nullptr,FALSE);for(int id:{101,102,103,110})InvalidateRect(GetDlgItem(window,id),nullptr,FALSE);}
 std::wstring selectedMic(){int i=(int)SendMessageW(microphone,CB_GETCURSEL,0,0);return i>=0&&i<(int)microphones.size()?microphones[i].id:L"";}
 void save(){if(!preview)WritePrivateProfileStringW(L"Devices",L"Mic",selectedMic().c_str(),ini.c_str());}
@@ -72,7 +72,7 @@ void paint(){
  }
  BitBlt(dc,0,0,r.right,r.bottom,mem,0,0,SRCCOPY);SelectObject(mem,prior);DeleteObject(bmp);DeleteDC(mem);EndPaint(window,&ps);
 }
-void draw(DRAWITEMSTRUCT* d){Graphics g(d->hDC);g.ScaleTransform(scale,scale);g.SetSmoothingMode(SmoothingModeAntiAlias);g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);float w=static_cast<float>(d->rcItem.right-d->rcItem.left)/scale,h=static_cast<float>(d->rcItem.bottom-d->rcItem.top)/scale;
+void draw(DRAWITEMSTRUCT* d){Graphics g(d->hDC);g.Clear(c(18,21,26));g.ScaleTransform(scale,scale);g.SetSmoothingMode(SmoothingModeAntiAlias);g.SetTextRenderingHint(TextRenderingHintClearTypeGridFit);float w=static_cast<float>(d->rcItem.right-d->rcItem.left)/scale,h=static_cast<float>(d->rcItem.bottom-d->rcItem.top)/scale;
  int id=(int)d->CtlID;bool on=(id==101&&source==1)||(id==102&&source==2)||(id==103&&source==0)||(id==110&&pinned);Color bg=on&&id!=103?c(104,221,187):c(35,42,52),ink=on&&id!=103?c(18,21,26):c(234,239,245);
  if(d->itemState&ODS_SELECTED)bg=c(68,105,98);
  box(g,0,0,w,h,bg);

@@ -1,6 +1,13 @@
 DISFORWARD native development checkpoint
 
 EXECUTED PASSES
+- Windows preview UI: launch/close, compact dimensions, source-button commands,
+  Setup expansion and PIN/topmost on/off pass; screenshot captured.
+  This check disables audio and does not test real Discord or fullscreen overlays.
+- Windows CI: native kernel driver builds with VS 2026 / WDK 10.0.28000.2526.
+- Windows signability check: no errors/warnings; native INF/SYS/CAT generated.
+- Windows MSVC /W4 /WX: frontend, driver installer and both audio tests build.
+- Both portable audio tests and source checks pass on the Windows runner.
 - Portable driver PCM transport: sanitizer-enabled test of initial silence,
   20 ms preroll, exact byte preservation, bounded 100 ms overflow, 25,000
   timer-sized packets, reset-to-silence and separate adapter instances.
@@ -22,14 +29,13 @@ SOURCE AUDIT
 - App captures only the selected source and detects Discord without persisting PID.
 
 NOT EXECUTED / RELEASE BLOCKERS
-- WDK compilation and compiler/static-driver-verifier diagnostics.
-- INF validation and catalog generation/validation with actual Windows tools.
+- Driver Verifier/static driver analysis and full kernel runtime diagnostics.
 - Microsoft driver signing and normal Windows driver installation.
 - Driver Verifier, HLK, PnP/power/sleep/hot-unplug and timer/IRQL stress testing.
-- Rendered UI/high-DPI/multi-monitor and always-on-top behavior on Windows.
+- High-DPI/multi-monitor and fullscreen/topmost compatibility testing.
 - Real Discord capture, native microphone return, call-app reception and long calls.
 
-No native kernel driver binary is supplied or claimed built. Portable transport
+Windows CI artifacts supply an unsigned native kernel binary. Portable transport
 unit tests do not prove driver safety, schedulability or Windows compatibility.
 The presence of frontend EXEs is not evidence of a functioning installed device.
 No production release claim, zero-error guarantee or live Windows pass is made.
