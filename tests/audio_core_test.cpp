@@ -33,6 +33,21 @@ int main(){
   float sample=.9f*std::sin((float)i*.131f);gate.frame(1,sample,-sample,0,0,l,r);assert(std::abs(l-sample)<1e-6&&std::abs(r+sample)<1e-6);
  }
 
+ // Compare clock-corrected output with analytic full-band sine references.
+ // This catches the treble loss of a linear variable-rate interpolator.
+ for(double ratio:{.999,1.,1.001})for(double hz:{80.,997.,8000.,16000.,20000.}){
+  auto stream=std::make_unique<df::StereoQueue>();df::DriftReader reader;reader.setRatio(ratio);
+  unsigned long long inputFrame=0;double error=0,energy=0;
+  for(int i=0;i<16000;++i){
+   while(stream->size()<4096){float v=.25f*static_cast<float>(std::sin(6.283185307179586*hz*static_cast<double>(inputFrame++)/48000.));float pair[]={v,-v*.5f};stream->push(pair,1);}
+   assert(reader.frame(*stream,l,r));
+   double expected=.25*std::sin(6.283185307179586*hz*(31+i*ratio)/48000.);
+   error+=(l-expected)*(l-expected);energy+=expected*expected;assert(std::abs(r+l*.5f)<1e-7);
+  }
+  assert(std::sqrt(error/energy)<.001);
+ }
+ std::cout<<"PASS: 64-tap drift correction at +/-1000 ppm, 80 Hz-20 kHz, stereo independence and better than -60 dB error against analytic references.\n";
+
  df::ToneDetector correct(997),wrong(997),silent(997),noise(997),tooShort(997);
  for(int i=0;i<86400;i++){
   correct.sample(.0316*std::sin(6.283185307179586*997*(i-317)/48000.));

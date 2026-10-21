@@ -22,7 +22,7 @@ class ReceiveSession {
 public:
  void stop(){if(playback)playback->Stop();if(capture)capture->Stop();playback.put();capture.put();}
  ~ReceiveSession(){stop();}
- std::wstring start(const Endpoint& out,const Endpoint& in){
+ std::wstring start(const Endpoint& out,const Endpoint& in,const std::wstring& label=L"Discord receive"){
   stop();HRESULT hr=open(out,playback);
   if(SUCCEEDED(hr))hr=open(in,capture);
   if(SUCCEEDED(hr))hr=playback->Start();
@@ -36,7 +36,7 @@ public:
   }
   // The capture anchor keeps the format active. Its bounded Windows buffer
   // is intentionally unread; send/monitor clients read independent streams.
-  if(FAILED(hr)){stop();return L"Discord receive format: "+hrMessage(hr)+L" Close Discord playback and ASIO Bridge, then Refresh. If needed set both Hi-Fi Cable formats to 48,000 Hz in Sound settings.";}
+  if(FAILED(hr)){stop();return label+L" format: "+hrMessage(hr)+L" Close applications using this cable and ASIO Bridge, then Refresh. If needed set both cable formats to 48,000 Hz in Sound settings.";}
   return L"";
  }
 };

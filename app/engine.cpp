@@ -40,6 +40,34 @@ HRESULT clientFor(const std::wstring &id,Com<IAudioClient>& client){
     if(SUCCEEDED(hr))hr=device->Activate(__uuidof(IAudioClient),CLSCTX_ALL,nullptr,(void**)client.put());
     return hr;
 }
+HRESULT monitorClient(const std::wstring& id,Com<IAudioClient>& client,bool allowRaw=true){
+    auto hr=clientFor(id,client);if(FAILED(hr))return hr;
+    Com<IAudioClient2> media;
+    hr=client->QueryInterface(__uuidof(IAudioClient2),(void**)media.put());if(FAILED(hr))return hr;
+    // A listening stream is media, never a communications/voice-processing stream.
+    // Request RAW only when the device explicitly advertises support.
+    Com<IMMDeviceEnumerator> en;Com<IMMDevice> device;Com<IPropertyStore> properties;
+    bool raw=false;
+    const PROPERTYKEY rawKey={{0x8943b373,0x388c,0x4395,{0xb5,0x57,0xbc,0x6d,0xba,0xff,0xaf,0xdb}},2};
+    if(SUCCEEDED(CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put()))&&
+       SUCCEEDED(en->GetDevice(id.c_str(),device.put()))&&SUCCEEDED(device->OpenPropertyStore(STGM_READ,properties.put()))){
+        PROPVARIANT value;PropVariantInit(&value);
+        if(SUCCEEDED(properties->GetValue(rawKey,&value)))raw=allowRaw&&value.vt==VT_BOOL&&value.boolVal==VARIANT_TRUE;
+        PropVariantClear(&value);
+    }
+    AudioClientProperties options{};options.cbSize=sizeof(options);options.eCategory=AudioCategory_Media;
+    options.Options=raw?AUDCLNT_STREAMOPTIONS_RAW:AUDCLNT_STREAMOPTIONS_NONE;
+    hr=media->SetClientProperties(&options);
+    if(FAILED(hr)&&raw){raw=false;options.Options=AUDCLNT_STREAMOPTIONS_NONE;hr=media->SetClientProperties(&options);}
+    if(FAILED(hr))return hr;
+    WAVEFORMATEX* mix=nullptr;hr=client->GetMixFormat(&mix);
+    if(SUCCEEDED(hr)&&(!mix||mix->nSamplesPerSec<44100))hr=AUDCLNT_E_UNSUPPORTED_FORMAT;
+#ifdef DISFORWARD_AUDIO_TEST
+    std::wprintf(L"SPEAKER media output: %lu Hz, RAW supported/accepted=%d\n",mix?mix->nSamplesPerSec:0,raw?1:0);
+#endif
+    if(mix)CoTaskMemFree(mix);
+    return hr;
+}
 // Newer SDK ABI declarations; kept local to build with MinGW-w64 11.
 struct ProcessParams {int type=1;DWORD pid=0;int mode=0;};
 static_assert(sizeof(ProcessParams)==12,"Windows process capture ABI");
@@ -141,6 +169,43 @@ std::vector<Endpoint> endpoints(EDataFlow flow){
     return result;
 }
 #ifdef DISFORWARD_AUDIO_TEST
+int probeEndpointQuality(const std::wstring& id,std::array<double,8>* levels){
+ HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return 0;
+ struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
+ auto input=std::make_unique<Capture>();
+ if(FAILED(input->init(id,false,0,cancel))||FAILED(input->start()))return 0;
+ std::vector<float> left,right;auto begin=GetTickCount64();std::atomic<unsigned long> faults{0};
+ while(GetTickCount64()-begin<1800){
+  if(FAILED(input->drain(faults)))return 0;
+  float l=0,r=0;while(input->queue.pop(l,r)){left.push_back(l);right.push_back(r);}Sleep(2);
+ }
+ constexpr size_t count=48000;
+ if(left.size()<count)return 0;
+ const size_t start=left.size()-count;
+ std::vector<double> window(count);double total=0;
+ for(size_t i=0;i<count;++i){window[i]=.5-.5*std::cos(6.283185307179586*static_cast<double>(i)/(count-1));total+=window[i];}
+ auto amplitude=[&](const std::vector<float>& samples,double hz){
+  double best=0;
+  // Clock compensation is allowed; search a narrow neighborhood rather
+  // than mistaking a sub-Hz device-clock difference for lost treble.
+  for(int offset=-16;offset<=16;++offset){
+   double omega=6.283185307179586*(hz+offset*.25)/48000.;
+   double cosine=std::cos(omega),sine=std::sin(omega),c=1,s=0,real=0,imag=0;
+   for(size_t i=0;i<count;++i){double v=samples[start+i]*window[i];real+=v*c;imag+=v*s;double next=c*cosine-s*sine;s=s*cosine+c*sine;c=next;}
+   best=std::max(best,2*std::hypot(real,imag)/total);
+  }
+  return best;
+ };
+ bool ok=true;size_t band=0;
+ for(double hz:{80.,997.,8000.,16000.}){
+  double l=amplitude(left,hz),r=amplitude(right,hz);
+  if(levels){(*levels)[band*2]=l;(*levels)[band*2+1]=r;}++band;
+  std::wprintf(L"SPEAKER full-band %5.0f Hz: L=%.6f R=%.6f (target .0125/.00625)\n",hz,l,r);
+  ok=ok&&std::abs(l/.0125-1)<.15&&std::abs(r/.00625-1)<.15;
+ }
+ std::wprintf(L"%ls: 80 Hz-16 kHz transfer and independent stereo channel levels on virtual test sink.\n",ok?L"PASS":L"FAIL");
+ return ok?1:0;
+}
 int probeEndpointTone(const std::wstring& id,double frequency,unsigned duration){
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return -1;
  struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
@@ -249,22 +314,38 @@ void Engine::run(RouteConfig config){
         const int active=wanted.load();
         const bool isProgram=active==2&&config.process;
         const auto inputId=active==2&&!config.process?config.feed:config.mic;
+        const wchar_t* inputContext=active==2?L"Discord receive line":L"Your microphone";
         auto input=std::make_unique<Capture>();
-        Com<IAudioClient> output;Com<IAudioRenderClient> render;Com<IAudioClockAdjustment> clock;
+        Com<IAudioClient> output;Com<IAudioRenderClient> render;
         HANDLE program=nullptr;
         if(isProgram){program=OpenProcess(SYNCHRONIZE,FALSE,config.pid);if(!program){fail(HRESULT_FROM_WIN32(GetLastError()),L"Discord closed");return;}}
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
         auto checked=[&](HRESULT hr,const wchar_t* context){if(FAILED(hr)){if(WaitForSingleObject(stopEvent,0)!=WAIT_OBJECT_0)fail(hr,context);return false;}return true;};
-        if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),isProgram?L"Discord playback":L"Your microphone"))return;
-        if(!checked(clientFor(config.output,output),L"VB-CABLE playback endpoint"))return;
+        if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),inputContext))return;
+        if(!checked(config.monitor?monitorClient(config.output,output):clientFor(config.output,output),config.monitor?L"SPEAKER output (use a device at 44.1 kHz or higher)":L"Selected audio output"))return;
         auto f=format();
-        if(!checked(output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr),L"VB-CABLE output"))return;
+        HRESULT outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert,300000,0,&f,nullptr);
+        if(FAILED(outputInit)&&config.monitor){
+            // Some drivers advertise RAW but reject its stream/format combination.
+            // A fresh media client is required; never reuse a failed Initialize.
+            output.put();
+            if(!checked(monitorClient(config.output,output,false),L"SPEAKER compatible media output"))return;
+            outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert,300000,0,&f,nullptr);
+        }
+        if(!checked(outputInit,L"Selected audio output"))return;
         if(!checked(output->GetService(__uuidof(IAudioRenderClient),(void**)render.put()),L"Output buffer"))return;
-        output->GetService(__uuidof(IAudioClockAdjustment),(void**)clock.put());
+        if(config.monitor){
+            Com<IAudioSessionControl> baseSession;
+            Com<IAudioSessionControl2> session;
+            if(!checked(output->GetService(__uuidof(IAudioSessionControl),(void**)baseSession.put()),L"SPEAKER audio session"))return;
+            if(!checked(baseSession->QueryInterface(__uuidof(IAudioSessionControl2),(void**)session.put()),L"SPEAKER session control"))return;
+            if(!checked(session->SetDuckingPreference(TRUE),L"SPEAKER volume stability"))return;
+        }
+        DriftReader reader;
         UINT32 frames=0;if(!checked(output->GetBufferSize(&frames),L"Output capacity"))return;
         bufferMs=(int)(frames*1000/48000);
-        if(!checked(input->start(),isProgram?L"Discord playback":L"Your microphone"))return;
-        if(!checked(output->Start(),L"VB-CABLE output"))return;
+        if(!checked(input->start(),inputContext))return;
+        if(!checked(output->Start(),L"Selected audio output"))return;
         struct Stop{IAudioClient* client;~Stop(){client->Stop();client->Reset();}} outputStop{output.get()};
         Mmcss priority;SourceGate gate;
         state=2;PostMessageW(target,StateMessage,0,0);
@@ -275,7 +356,7 @@ void Engine::run(RouteConfig config){
             if(stopping&&!closeAt){wanted=0;closeAt=GetTickCount64()+45;}
             if(closeAt&&GetTickCount64()>=closeAt)break;
             if(program&&WaitForSingleObject(program,0)==WAIT_OBJECT_0){fail(HRESULT_FROM_WIN32(ERROR_PROCESS_ABORTED),L"Discord closed. Open Discord and select Friend again");break;}
-            if(!checked(input->drain(glitches),isProgram?L"Discord stream":L"Microphone stream"))break;
+            if(!checked(input->drain(glitches),inputContext))break;
             UINT32 padding=0;if(!checked(output->GetCurrentPadding(&padding),L"DISFORWARD device"))break;
             UINT32 available=frames-padding;
             if(available){
@@ -285,7 +366,7 @@ void Engine::run(RouteConfig config){
                 if(!primed&&input->queue.size()>=targetFrames)primed=true;
                 bool missing=false;
                 for(UINT32 i=0;i<available;i++){
-                    float l=0,r=0;bool has=primed&&input->queue.pop(l,r);
+                    float l=0,r=0;bool has=primed&&reader.frame(input->queue,l,r);
                     if(primed&&requested&&!has)missing=true;
                     gate.frame(primed?requested:0,active==1?l:0,active==1?r:0,active==2?l:0,active==2?r:0,samples[i*2],samples[i*2+1]);
                     maxSample=std::max({maxSample,std::abs(samples[i*2]),std::abs(samples[i*2+1])});
@@ -294,10 +375,10 @@ void Engine::run(RouteConfig config){
                 peak=(int)(std::min(maxSample,2.f)*10000);
                 if(!checked(render->ReleaseBuffer(available,0),L"Output stream"))break;
             }
-            auto now=GetTickCount64();if(clock&&now-adjusted>=250){
+            auto now=GetTickCount64();if(now-adjusted>=250){
                 float desired=std::clamp(((float)input->queue.size()-(float)targetFrames)*.0000003f,-.001f,.001f);
                 correction+=std::clamp(desired-correction,-.00001f,.00001f);
-                if(!checked(clock->SetSampleRate(48000.f*(1+correction)),L"Output clock"))break;
+                reader.setRatio(1+correction);
                 adjusted=now;
             }
             Sleep(2);

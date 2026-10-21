@@ -1,7 +1,7 @@
 # DISFORWARD
 
 Compact Windows x64 console for forwarding your mic or Discord audio into one
-call-app microphone input. Version 0.6 adds an independent Discord receive line
+call-app microphone input. Version 0.6.2 adds an independent Discord receive line
 and **SPEAKER** monitoring. Windows default playback/communications settings
 are neither changed nor used to select the routes.
 
@@ -27,7 +27,7 @@ Hi-Fi Cable package directly from VB-Audio, verifies its checksum and opens the
 vendor installer. Restart Windows, open DISFORWARD, Setup, Refresh, then select
 your mic and listening device. Run **Check audio lines** before a live call.
 
-DISFORWARD negotiates both receive engines at 48 kHz using the documented
+DISFORWARD negotiates both receive and send cable engines at 48 kHz using the documented
 Windows stream-format API and keeps them active. It does not rewrite the
 persistent endpoint formats. If another client locks the format, close Discord
 playback/ASIO Bridge and Refresh; setting both endpoint defaults to 48 kHz is a
@@ -36,7 +36,7 @@ Follow [START-HERE.txt](START-HERE.txt) for the complete setup.
 
 - **My Mic / Discord Friend / Mute** choose what the phone call hears.
 - **SPEAKER** hears Discord independently, including while the phone is muted.
-- **PIN** keeps the 360 × 174 console topmost over normal/borderless windows.
+- **PIN** keeps the 360 × 208 console topmost over normal/borderless windows.
   Windows exclusive fullscreen and secure desktops can cover it.
 
 Only the Discord receive line reaches SPEAKER. Your microphone and the phone

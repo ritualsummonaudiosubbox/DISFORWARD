@@ -2,8 +2,9 @@
 #include "../app/receive_session.h"
 #include <iostream>
 #include <cmath>
-namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);}
-int tone(const df::Endpoint& out,unsigned duration=12000){
+#include <array>
+namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);int probeEndpointQuality(const std::wstring&,std::array<double,8>* levels);}
+int tone(const df::Endpoint& out,unsigned duration=12000,bool quality=false){
  df::Com<IMMDeviceEnumerator> en;df::Com<IMMDevice> device;df::Com<IAudioClient> client;df::Com<IAudioRenderClient> render;
  HRESULT hr=CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put());
  if(SUCCEEDED(hr))hr=en->GetDevice(out.id.c_str(),device.put());
@@ -17,7 +18,10 @@ int tone(const df::Endpoint& out,unsigned duration=12000){
  while(GetTickCount64()-begin<duration){
   UINT32 padding=0;hr=client->GetCurrentPadding(&padding);if(FAILED(hr))break;
   UINT32 n=size-padding;if(n){BYTE* bytes=nullptr;hr=render->GetBuffer(n,&bytes);if(FAILED(hr))break;
-   for(UINT32 i=0;i<n;++i,++frame){float v=.0316f*static_cast<float>(std::sin(6.283185307179586*997*static_cast<double>(frame)/48000.));reinterpret_cast<float*>(bytes)[i*2]=v;reinterpret_cast<float*>(bytes)[i*2+1]=v;}
+   for(UINT32 i=0;i<n;++i,++frame){float v=0;
+    if(quality){for(double hz:{80.,997.,8000.,16000.})v+=.0125f*static_cast<float>(std::sin(6.283185307179586*hz*static_cast<double>(frame)/48000.));}
+    else v=.0316f*static_cast<float>(std::sin(6.283185307179586*997*static_cast<double>(frame)/48000.));
+    reinterpret_cast<float*>(bytes)[i*2]=v;reinterpret_cast<float*>(bytes)[i*2+1]=quality?v*.5f:v;}
    hr=render->ReleaseBuffer(n,0);if(FAILED(hr))break;
   }Sleep(2);
  }
@@ -43,6 +47,8 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
  auto issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Initial receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
  df::ReceiveSession session;issue=session.start(receivePlayback,receiveCapture);
  if(!issue.empty()){std::wcerr<<issue<<L"\n";return 1;}
+ df::ReceiveSession sendSession;issue=sendSession.start(send,mic,L"Call send");
+ if(!issue.empty()){std::wcerr<<issue<<L"\n";return 1;}
  std::wcout<<L"Active receive engines verified at 48,000 Hz through GetCurrentSharedModeEnginePeriod. Persistent default formats remain unchanged.\n";
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(receivePlayback,receiveCapture,cancel);if(cancel)CloseHandle(cancel);
  std::wcout<<L"Receive playback: "<<receivePlayback.name<<L" | "<<receivePlayback.driver<<L"\nReceive recording: "<<receiveCapture.name<<L" | "<<receiveCapture.driver<<L"\n"<<result<<L"\n";
@@ -51,30 +57,72 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
  STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
  if(!CreateProcessW(path,cmd.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&si,&pi))return 1;
  CloseHandle(pi.hThread);
- struct Child{HANDLE h;~Child(){WaitForSingleObject(h,22000);CloseHandle(h);}} child{pi.hProcess};
+ struct Child{HANDLE h;~Child(){WaitForSingleObject(h,28000);CloseHandle(h);}} child{pi.hProcess};
  bool ok=true;
  auto check=[&](const wchar_t* label,const std::wstring& id,int expected){int got=df::probeEndpointTone(id,997,1000);std::wcout<<label<<L": "<<got<<L" (expected "<<expected<<L")\n";ok=ok&&got==expected;};
  check(L"Discord receive signal",receiveCapture.id,1);
  check(L"Muted send has no receive bypass",mic.id,0);
  df::RouteConfig route;route.process=false;route.feed=receiveCapture.id;route.output=send.id;
  df::Engine call,monitor;
+ // A generated capture source exercises the same capture-device branch as
+ // a physical mic, without requesting or recording private microphone audio.
+ df::RouteConfig simulatedMic;simulatedMic.mic=receiveCapture.id;simulatedMic.output=send.id;simulatedMic.process=false;
+ call.start(nullptr,simulatedMic,1);Sleep(400);
+ check(L"Microphone capture branch forwards generated signal",mic.id,1);
+ ok=ok&&call.state.load()==2;call.stop();Sleep(400);
+ check(L"Microphone mute is silent",mic.id,0);
  call.start(nullptr,route,2);Sleep(400);
  check(L"Friend forwarded to send",mic.id,1);
  call.stop();Sleep(400);
  check(L"Mute removes friend from send",mic.id,0);
  // CI has no physical speakers. A second shared stream into the test cable
  // proves independent engine lifetimes; it is not an acoustic-echo test.
- monitor.start(nullptr,route,2);call.start(nullptr,route,2);Sleep(400);
+ auto listeningRoute=route;listeningRoute.monitor=true;
+ monitor.start(nullptr,listeningRoute,2);call.start(nullptr,route,2);Sleep(400);
  call.stop();Sleep(300);
  check(L"Listening stream survives phone mute (test sink)",mic.id,1);
+ if(monitor.state.load()==3)std::wcerr<<L"Listening engine error: "<<monitor.message()<<L"\n";
  ok=ok&&monitor.state.load()==2;
  call.start(nullptr,route,2);Sleep(300);monitor.stop();Sleep(300);
  check(L"Phone stream survives speaker off (test sink)",mic.id,1);
  ok=ok&&call.state.load()==2;call.stop();Sleep(400);
  check(L"Both streams off are silent",mic.id,0);
+ for(int i=0;i<3;++i){
+  call.start(nullptr,i%2?simulatedMic:route,i%2?1:2);Sleep(400);
+  ok=ok&&call.state.load()==2;call.stop();
+ }
+ check(L"Repeated mic/friend starts and stops leave send silent",mic.id,0);
  bool unchanged=before==defaults();std::wcout<<L"Windows default endpoints unchanged: "<<unchanged<<L"\n";
  if(!ok||!unchanged){std::wcerr<<L"FAIL: split cable route or independent engine lifecycle.\n";return 1;}
  std::wcout<<L"PASS: independent receive/send buses, routed friend forwarding and mute isolation, independent listening/send stream lifetimes, unchanged default endpoints. Physical speakers and actual calls not tested.\n";return 0;
+}
+int quality(const df::Endpoint& send,const df::Endpoint& mic){
+ df::Endpoint receivePlayback,receiveCapture;
+ if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture))return 1;
+ df::ReceiveSession session;if(!session.start(receivePlayback,receiveCapture).empty())return 1;
+ df::ReceiveSession sendSession;auto sendIssue=sendSession.start(send,mic,L"Call send");if(!sendIssue.empty()){std::wcerr<<sendIssue<<L"\n";return 1;}
+ wchar_t path[32768];GetModuleFileNameW(nullptr,path,32768);std::wstring cmd=L"\""+std::wstring(path)+L"\" --tone-quality";
+ STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
+ if(!CreateProcessW(path,cmd.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&si,&pi))return 1;
+ CloseHandle(pi.hThread);
+ struct Child{HANDLE h;~Child(){WaitForSingleObject(h,15000);CloseHandle(h);}} child{pi.hProcess};
+ std::wcout<<L"Receive-line full-band baseline:\n";
+ std::array<double,8> baseline{},output{};
+ if(!df::probeEndpointQuality(receiveCapture.id,&baseline))return 1;
+ df::Engine monitor;df::RouteConfig route;route.process=false;route.monitor=true;route.feed=receiveCapture.id;route.output=send.id;
+ monitor.start(nullptr,route,2);Sleep(800);
+ if(monitor.state.load()!=2){std::wcerr<<monitor.message()<<L"\n";return 1;}
+ // Measure the actual transport's recording endpoint. A software render
+ // tap is a different topology and does not validate this cable's output.
+ std::wcout<<L"Complete SPEAKER path into paired recording endpoint:\n";
+ int ok=df::probeEndpointQuality(mic.id,&output);monitor.stop();
+ for(size_t i=0;i<baseline.size();++i){
+  double ratio=baseline[i]>0?output[i]/baseline[i]:0;
+  std::wcout<<L"SPEAKER transfer band/channel "<<i<<L": "<<20*std::log10(std::max(ratio,1e-12))<<L" dB\n";
+  ok=ok&&std::abs(ratio-1)<.06;
+ }
+ std::wcout<<(ok?L"PASS: SPEAKER adds less than 6 percent amplitude change at all four bands in both channels.\n":L"FAIL: SPEAKER relative frequency response.\n");
+ return ok?0:1;
 }
 int wmain(int argc,wchar_t** argv){
  if(argc>1&&wcscmp(argv[1],L"--silent")==0){Sleep(14000);return 0;}
@@ -85,8 +133,10 @@ int wmain(int argc,wchar_t** argv){
  for(int i=0;i<40&&!found;++i){found=df::cablePair(df::endpoints(eRender),df::endpoints(eCapture),send,mic);if(!found)Sleep(250);}
  if(!found){std::wcerr<<L"FAIL: no active VB-CABLE endpoint pair.\n";return 1;}
  if(argc>1&&wcscmp(argv[1],L"--tone")==0)return tone(send);
- if(argc>1&&wcscmp(argv[1],L"--tone-receive")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,18000);}
+ if(argc>1&&wcscmp(argv[1],L"--tone-receive")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,24000);}
+ if(argc>1&&wcscmp(argv[1],L"--tone-quality")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,14000,true);}
  if(argc>1&&wcscmp(argv[1],L"--split")==0)return split(send,mic);
+ if(argc>1&&wcscmp(argv[1],L"--quality")==0)return quality(send,mic);
  std::wcout<<L"Playback: "<<send.name<<L" | interface: "<<send.driver<<L"\nCapture: "<<mic.name<<L" | interface: "<<mic.driver<<L"\n";
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(send,mic,cancel);if(cancel)CloseHandle(cancel);std::wcout<<result<<L"\n";
  if(result.rfind(L"PASS:",0)!=0)return 1;
