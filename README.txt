@@ -18,7 +18,7 @@ FIRST SETUP
    MICROPHONE: CABLE Output (VB-Audio Virtual Cable).
    SPEAKERS: your normal headphones/physical speakers.
    Keep the phone app microphone explicitly selected, not system default.
-5. DISFORWARD negotiates matching 48 kHz streams on the receive cable.
+5. DISFORWARD negotiates matching 48 kHz streams on both virtual cables.
    Leave ASIO Bridge closed. Turn off Windows "Listen to this device".
    If the app reports a format lock, close Discord playback and Refresh.
    Fallback: set both Hi-Fi Cable endpoint formats to 48,000 Hz in Windows

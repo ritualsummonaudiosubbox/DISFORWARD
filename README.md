@@ -27,7 +27,7 @@ Hi-Fi Cable package directly from VB-Audio, verifies its checksum and opens the
 vendor installer. Restart Windows, open DISFORWARD, Setup, Refresh, then select
 your mic and listening device. Run **Check audio lines** before a live call.
 
-DISFORWARD negotiates both receive engines at 48 kHz using the documented
+DISFORWARD negotiates both receive and send cable engines at 48 kHz using the documented
 Windows stream-format API and keeps them active. It does not rewrite the
 persistent endpoint formats. If another client locks the format, close Discord
 playback/ASIO Bridge and Refresh; setting both endpoint defaults to 48 kHz is a

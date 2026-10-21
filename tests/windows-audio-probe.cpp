@@ -2,7 +2,7 @@
 #include "../app/receive_session.h"
 #include <iostream>
 #include <cmath>
-namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);int probeEndpointQuality(const std::wstring&);}
+namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);int probeEndpointQuality(const std::wstring&,bool loopback=false);}
 int tone(const df::Endpoint& out,unsigned duration=12000,bool quality=false){
  df::Com<IMMDeviceEnumerator> en;df::Com<IMMDevice> device;df::Com<IAudioClient> client;df::Com<IAudioRenderClient> render;
  HRESULT hr=CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put());
@@ -45,6 +45,8 @@ int split(const df::Endpoint& send,const df::Endpoint& mic){
  auto before=defaults();
  auto issue=df::receiveFormatIssue(receivePlayback,receiveCapture);std::wcout<<L"Initial receive format check: "<<(issue.empty()?L"equal rates":issue)<<L"\n";
  df::ReceiveSession session;issue=session.start(receivePlayback,receiveCapture);
+ if(!issue.empty()){std::wcerr<<issue<<L"\n";return 1;}
+ df::ReceiveSession sendSession;issue=sendSession.start(send,mic,L"Call send");
  if(!issue.empty()){std::wcerr<<issue<<L"\n";return 1;}
  std::wcout<<L"Active receive engines verified at 48,000 Hz through GetCurrentSharedModeEnginePeriod. Persistent default formats remain unchanged.\n";
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);auto result=df::testVirtualLine(receivePlayback,receiveCapture,cancel);if(cancel)CloseHandle(cancel);
@@ -97,6 +99,7 @@ int quality(const df::Endpoint& send,const df::Endpoint& mic){
  df::Endpoint receivePlayback,receiveCapture;
  if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),receivePlayback,receiveCapture))return 1;
  df::ReceiveSession session;if(!session.start(receivePlayback,receiveCapture).empty())return 1;
+ df::ReceiveSession sendSession;auto sendIssue=sendSession.start(send,mic,L"Call send");if(!sendIssue.empty()){std::wcerr<<sendIssue<<L"\n";return 1;}
  wchar_t path[32768];GetModuleFileNameW(nullptr,path,32768);std::wstring cmd=L"\""+std::wstring(path)+L"\" --tone-quality";
  STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
  if(!CreateProcessW(path,cmd.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&si,&pi))return 1;
@@ -107,7 +110,10 @@ int quality(const df::Endpoint& send,const df::Endpoint& mic){
  df::Engine monitor;df::RouteConfig route;route.process=false;route.monitor=true;route.feed=receiveCapture.id;route.output=send.id;
  monitor.start(nullptr,route,2);Sleep(800);
  if(monitor.state.load()!=2){std::wcerr<<monitor.message()<<L"\n";return 1;}
- int ok=df::probeEndpointQuality(mic.id);monitor.stop();return ok?0:1;
+ std::wcout<<L"SPEAKER render-loopback transfer:\n";
+ int renderOk=df::probeEndpointQuality(send.id,true);
+ std::wcout<<L"Call send capture transfer:\n";
+ int ok=df::probeEndpointQuality(mic.id);monitor.stop();return ok&&renderOk?0:1;
 }
 int wmain(int argc,wchar_t** argv){
  if(argc>1&&wcscmp(argv[1],L"--silent")==0){Sleep(14000);return 0;}

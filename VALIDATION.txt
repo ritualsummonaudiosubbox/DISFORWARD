@@ -64,3 +64,8 @@ SPEAKER use this path. The added filter history is 31 samples at 48 kHz, in
 addition to WASAPI/queue/device buffers; this is not zero-latency routing.
 Portable tests check 80 Hz-20 kHz at +/-1000 ppm against analytic references.
 Windows tests check receive-line baseline and complete SPEAKER transfer.
+
+Both send and receive cable engines are kept at matching 48 kHz stream
+formats. This also avoids the send cable's mixed-rate conversion. The
+frequency test checks the receive baseline, render loopback and send capture
+separately, so a cable-capture filter is not mistaken for a monitor filter.
