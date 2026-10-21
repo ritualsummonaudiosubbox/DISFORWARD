@@ -23,7 +23,7 @@ jobs:
         run: |
           python tests/check_source.py
           if ($LASTEXITCODE) { throw 'Source check failed' }
-          foreach ($test in @('audio_core_test','route_devices_test')) {
+          foreach ($test in @('audio_core_test','route_devices_test','playout_test')) {
             cl /nologo /std:c++17 /EHsc /W4 /WX "tests/$test.cpp" "/Fe:$test.exe"
             if ($LASTEXITCODE) { throw "$test build failed" }
             & "./$test.exe"

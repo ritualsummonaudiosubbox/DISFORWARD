@@ -74,6 +74,40 @@ public:
         return true;
     }
 };
+// Keep a queue reserve AFTER filling the render buffer. If capture stalls,
+// fade the remaining real audio out, discard its stale tail, and refill the
+// reserve before fading in. Never repeat a packet or hold a last sample.
+class PlayoutBuffer {
+    DriftReader reader;
+    bool running=false,draining=false;
+    float gain=0;
+    size_t fadeRemaining=0;
+    double correction=1;
+    unsigned long gaps=0;
+    static constexpr size_t guard=64,fadeFrames=240;
+public:
+    static constexpr size_t reserveFrames=1440;
+    void setRatio(double ratio){correction=ratio;reader.setRatio(ratio);}
+    unsigned long recoveries()const{return gaps;}
+    bool active()const{return running;}
+    void beginBlock(const StereoQueue& queue,size_t renderFrames){
+        if(!running&&queue.size()>=reserveFrames+renderFrames+guard){
+            reader.reset();reader.setRatio(correction);running=true;draining=false;gain=0;
+        }
+    }
+    void frame(StereoQueue& queue,float& l,float& r){
+        l=r=0;if(!running)return;
+        const size_t available=queue.size()>guard?queue.size()-guard:0;
+        if(!draining&&available<=fadeFrames+8){draining=true;fadeRemaining=available>8?available-8:0;++gaps;}
+        if((draining&&!fadeRemaining)||!reader.frame(queue,l,r)){
+            if(!draining)++gaps;
+            queue.clear();reader.reset();running=draining=false;gain=0;l=r=0;return;
+        }
+        if(draining){gain*=static_cast<float>(fadeRemaining-1)/static_cast<float>(fadeRemaining);--fadeRemaining;}
+        else gain=std::min(1.f,gain+1.f/static_cast<float>(fadeFrames));
+        l*=gain;r*=gain;
+    }
+};
 // Break-before-make: the old source ramps completely to zero before the
 // new source is permitted. Never sum two voices, including mid-ramp changes.
 class SourceGate {

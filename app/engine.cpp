@@ -341,7 +341,7 @@ void Engine::run(RouteConfig config){
             if(!checked(baseSession->QueryInterface(__uuidof(IAudioSessionControl2),(void**)session.put()),L"SPEAKER session control"))return;
             if(!checked(session->SetDuckingPreference(TRUE),L"SPEAKER volume stability"))return;
         }
-        DriftReader reader;
+        PlayoutBuffer playout;
         UINT32 frames=0;if(!checked(output->GetBufferSize(&frames),L"Output capacity"))return;
         bufferMs=(int)(frames*1000/48000);
         if(!checked(input->start(),inputContext))return;
@@ -349,36 +349,42 @@ void Engine::run(RouteConfig config){
         struct Stop{IAudioClient* client;~Stop(){client->Stop();client->Reset();}} outputStop{output.get()};
         Mmcss priority;SourceGate gate;
         state=2;PostMessageW(target,StateMessage,0,0);
-        bool primed=false;float correction=0;ULONGLONG adjusted=GetTickCount64(),closeAt=0;
-        constexpr size_t targetFrames=1440;
+        float correction=0;ULONGLONG adjusted=GetTickCount64(),closeAt=0;
+        constexpr size_t targetFrames=PlayoutBuffer::reserveFrames;
+#ifdef DISFORWARD_AUDIO_TEST
+        const auto testBegin=GetTickCount64();
+#endif
         while(true){
             bool stopping=WaitForSingleObject(stopEvent,0)==WAIT_OBJECT_0;
             if(stopping&&!closeAt){wanted=0;closeAt=GetTickCount64()+45;}
             if(closeAt&&GetTickCount64()>=closeAt)break;
             if(program&&WaitForSingleObject(program,0)==WAIT_OBJECT_0){fail(HRESULT_FROM_WIN32(ERROR_PROCESS_ABORTED),L"Discord closed. Open Discord and select Friend again");break;}
-            if(!checked(input->drain(glitches),inputContext))break;
+            bool drainCapture=true;
+#ifdef DISFORWARD_AUDIO_TEST
+            const auto testElapsed=GetTickCount64()-testBegin;
+            drainCapture=!config.capturePauseMs||testElapsed<1000||testElapsed>=1000+config.capturePauseMs;
+#endif
+            if(drainCapture&&!checked(input->drain(glitches),inputContext))break;
             UINT32 padding=0;if(!checked(output->GetCurrentPadding(&padding),L"DISFORWARD device"))break;
             UINT32 available=frames-padding;
             if(available){
                 BYTE* bytes=nullptr;if(!checked(render->GetBuffer(available,&bytes),L"Output buffer"))break;
                 auto samples=(float*)bytes;float maxSample=0;
                 int requested=stopping?0:wanted.load();
-                if(!primed&&input->queue.size()>=targetFrames)primed=true;
-                bool missing=false;
+                playout.beginBlock(input->queue,available);
                 for(UINT32 i=0;i<available;i++){
-                    float l=0,r=0;bool has=primed&&reader.frame(input->queue,l,r);
-                    if(primed&&requested&&!has)missing=true;
-                    gate.frame(primed?requested:0,active==1?l:0,active==1?r:0,active==2?l:0,active==2?r:0,samples[i*2],samples[i*2+1]);
+                    float l=0,r=0;playout.frame(input->queue,l,r);
+                    gate.frame(requested,active==1?l:0,active==1?r:0,active==2?l:0,active==2?r:0,samples[i*2],samples[i*2+1]);
                     maxSample=std::max({maxSample,std::abs(samples[i*2]),std::abs(samples[i*2+1])});
                 }
-                if(missing)++underflows;
+                underflows=playout.recoveries();
                 peak=(int)(std::min(maxSample,2.f)*10000);
                 if(!checked(render->ReleaseBuffer(available,0),L"Output stream"))break;
             }
             auto now=GetTickCount64();if(now-adjusted>=250){
                 float desired=std::clamp(((float)input->queue.size()-(float)targetFrames)*.0000003f,-.001f,.001f);
                 correction+=std::clamp(desired-correction,-.00001f,.00001f);
-                reader.setRatio(1+correction);
+                playout.setRatio(1+correction);
                 adjusted=now;
             }
             Sleep(2);

@@ -105,7 +105,7 @@ int quality(const df::Endpoint& send,const df::Endpoint& mic){
  STARTUPINFOW si{};si.cb=sizeof(si);PROCESS_INFORMATION pi{};
  if(!CreateProcessW(path,cmd.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&si,&pi))return 1;
  CloseHandle(pi.hThread);
- struct Child{HANDLE h;~Child(){WaitForSingleObject(h,15000);CloseHandle(h);}} child{pi.hProcess};
+ struct Child{HANDLE h;~Child(){WaitForSingleObject(h,25000);CloseHandle(h);}} child{pi.hProcess};
  std::wcout<<L"Receive-line full-band baseline:\n";
  std::array<double,8> baseline{},output{};
  if(!df::probeEndpointQuality(receiveCapture.id,&baseline))return 1;
@@ -122,6 +122,15 @@ int quality(const df::Endpoint& send,const df::Endpoint& mic){
   ok=ok&&std::abs(ratio-1)<.06;
  }
  std::wcout<<(ok?L"PASS: SPEAKER adds less than 6 percent amplitude change at all four bands in both channels.\n":L"FAIL: SPEAKER relative frequency response.\n");
+ // Exercise the real engine's recovery, not just its sample/FIFO helpers.
+ route.capturePauseMs=150;monitor.start(nullptr,route,2);Sleep(700);
+ bool stableBeforeGap=monitor.state.load()==2&&monitor.underflows.load()==0;
+ Sleep(1700);
+ bool resumed=stableBeforeGap&&monitor.state.load()==2&&monitor.underflows.load()>=1;
+ std::wcout<<L"Injected 150 ms capture stall: engine state="<<monitor.state.load()<<L", recovery events="<<monitor.underflows.load()<<L"\n";
+ int afterGap=df::probeEndpointQuality(mic.id,nullptr);monitor.stop();
+ std::wcout<<(resumed&&afterGap?L"PASS: real SPEAKER engine rebuffered and recovered full-band stereo after capture stall.\n":L"FAIL: real SPEAKER engine capture-stall recovery.\n");
+ ok=ok&&resumed&&afterGap;
  return ok?0:1;
 }
 int wmain(int argc,wchar_t** argv){
@@ -134,7 +143,7 @@ int wmain(int argc,wchar_t** argv){
  if(!found){std::wcerr<<L"FAIL: no active VB-CABLE endpoint pair.\n";return 1;}
  if(argc>1&&wcscmp(argv[1],L"--tone")==0)return tone(send);
  if(argc>1&&wcscmp(argv[1],L"--tone-receive")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,24000);}
- if(argc>1&&wcscmp(argv[1],L"--tone-quality")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,14000,true);}
+ if(argc>1&&wcscmp(argv[1],L"--tone-quality")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,20000,true);}
  if(argc>1&&wcscmp(argv[1],L"--split")==0)return split(send,mic);
  if(argc>1&&wcscmp(argv[1],L"--quality")==0)return quality(send,mic);
  std::wcout<<L"Playback: "<<send.name<<L" | interface: "<<send.driver<<L"\nCapture: "<<mic.name<<L" | interface: "<<mic.driver<<L"\n";

@@ -34,7 +34,11 @@ bool supportsProcessCapture();
 std::wstring receiveFormatIssue(const Endpoint& playback,const Endpoint& capture);
 std::wstring hrMessage(HRESULT hr);
 std::wstring testVirtualLine(const Endpoint& playback,const Endpoint& microphone,HANDLE cancel);
-struct RouteConfig {std::wstring mic,feed,output;DWORD pid=0;bool process=true,monitor=false;};
+struct RouteConfig {std::wstring mic,feed,output;DWORD pid=0;bool process=true,monitor=false;
+#ifdef DISFORWARD_AUDIO_TEST
+ unsigned capturePauseMs=0;
+#endif
+};
 class Engine {
     HWND target=nullptr;
     HANDLE stopEvent=nullptr;

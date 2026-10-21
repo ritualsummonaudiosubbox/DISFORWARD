@@ -1,5 +1,11 @@
-DISFORWARD 0.6.2 - independent Discord receive + SPEAKER
+DISFORWARD 0.6.3 - independent Discord receive + SPEAKER
 Windows x64. Extract the complete folder before running.
+
+PATCH SCOPE
+This update repairs playback queue reserve and underrun recovery. It does not
+add microphone echo cancellation or noise suppression to Discord. Discord
+still captures the physical mic directly. With only the basic and Hi-Fi
+cables, no independent processed microphone endpoint is available.
 
 FIRST SETUP
 1. Close audio applications. Run DISFORWARD-Setup.exe as administrator.

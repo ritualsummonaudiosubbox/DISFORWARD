@@ -1,4 +1,4 @@
-DISFORWARD 0.6.2 - verification scope
+DISFORWARD 0.6.3 - verification scope
 
 The app uses TWO independent VB-Audio transports:
 - Hi-Fi Cable: Discord receive.
@@ -31,7 +31,7 @@ The DISFORWARD app/setup EXEs are not Authenticode-signed.
 The vendor installers remain original. Administrator rights and a restart
 may be required. No unsigned custom DISFORWARD kernel driver is installed.
 
-0.6.2 AUDIT PATCH
+0.6.3 AUDIT PATCH
 - Cancelling Check audio lines preserves sending and SPEAKER state.
   Continuing explicitly stops both routes and displays muted test status.
 - Receive and listening output failures identify the correct audio path.
@@ -42,7 +42,7 @@ may be required. No unsigned custom DISFORWARD kernel driver is installed.
 - UI assertions check SPEAKER remains enabled through every phone source
   and Mute selection, then turns off independently.
 
-0.6.2 SPEAKER / LAYOUT PATCH
+0.6.3 SPEAKER / LAYOUT PATCH
 - SPEAKER is a media-category stream; supported RAW mode bypasses optional
   endpoint processing. Always-on hardware processing cannot be bypassed.
 - The listening session opts out of Windows communications auto-ducking.
@@ -71,3 +71,26 @@ frequency test checks the receive baseline and actual paired recording
 endpoint separately. Each output band/channel must remain within 6 percent
 of the corresponding input. A software render tap is not this virtual
 transport's recording interface and is not counted as an endpoint test.
+
+0.6.3 PLAYBACK RECOVERY PATCH
+Startup/refill now requires enough captured audio to fill the render buffer
+AND retain the 30 ms queue reserve plus the resampler guard. The previous
+threshold could leave no reserve immediately after the first render.
+When capture stalls, the queued audio fades out, stale tail data is discarded,
+and output stays silent until the reserve refills. Audio then fades in. No
+packet repetition, held-sample waveform or abrupt zero-packet toggling is used.
+Portable tests cover render-size-aware startup, queue exhaustion, silent
+refill, stereo-safe resumption, packet jitter and a 110 ms capture outage.
+Windows integration injects a 150 ms capture-drain stall into the actual
+SPEAKER engine and verifies recovery and full-band stereo afterwards.
+These generated tests do not prove subjective freedom from static on a PC.
+
+OPEN MICROPHONE ISSUE
+Discord's direct physical microphone still bypasses DISFORWARD. No microphone
+echo cancellation or floor-noise suppression is implemented by this patch.
+The user reports Discord Echo Cancellation is already enabled and ineffective.
+Within the existing VB-CABLE-based design, an additional independent virtual
+mic transport is required before DISFORWARD can feed processed mic audio to
+Discord while retaining independent receive and phone-send buses. Supplying
+a cable only provides transport; echo/noise processing still requires its
+own implementation and validation. This build is not a completed mic fix.
