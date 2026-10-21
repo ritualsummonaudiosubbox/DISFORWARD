@@ -60,12 +60,14 @@ FULL-BAND CLOCK PATCH
 The expanded Windows frequency test caught treble attenuation with Windows
 variable-rate playback. Drift correction now uses a 64-tap Blackman-windowed
 sinc reader in DISFORWARD; Windows RATEADJUST is not used. Both phone and
-SPEAKER use this path. The added filter history is 31 samples at 48 kHz, in
-addition to WASAPI/queue/device buffers; this is not zero-latency routing.
+SPEAKER use this path. The resampler retains 31 history frames and needs 32 future frames.
+WASAPI, queue and device buffering still apply; this is not zero latency.
 Portable tests check 80 Hz-20 kHz at +/-1000 ppm against analytic references.
 Windows tests check receive-line baseline and complete SPEAKER transfer.
 
 Both send and receive cable engines are kept at matching 48 kHz stream
 formats. This also avoids the send cable's mixed-rate conversion. The
-frequency test checks the receive baseline, render loopback and send capture
-separately, so a cable-capture filter is not mistaken for a monitor filter.
+frequency test checks the receive baseline and actual paired recording
+endpoint separately. Each output band/channel must remain within 6 percent
+of the corresponding input. A software render tap is not this virtual
+transport's recording interface and is not counted as an endpoint test.

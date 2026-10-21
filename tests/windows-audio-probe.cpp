@@ -2,7 +2,8 @@
 #include "../app/receive_session.h"
 #include <iostream>
 #include <cmath>
-namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);int probeEndpointQuality(const std::wstring&,bool loopback=false);}
+#include <array>
+namespace df {int probeProcessTone(DWORD pid,double frequency,unsigned duration);int probeEndpointTone(const std::wstring&,double,unsigned);int probeEndpointQuality(const std::wstring&,std::array<double,8>* levels);}
 int tone(const df::Endpoint& out,unsigned duration=12000,bool quality=false){
  df::Com<IMMDeviceEnumerator> en;df::Com<IMMDevice> device;df::Com<IAudioClient> client;df::Com<IAudioRenderClient> render;
  HRESULT hr=CoCreateInstance(__uuidof(MMDeviceEnumerator),nullptr,CLSCTX_ALL,__uuidof(IMMDeviceEnumerator),(void**)en.put());
@@ -106,14 +107,22 @@ int quality(const df::Endpoint& send,const df::Endpoint& mic){
  CloseHandle(pi.hThread);
  struct Child{HANDLE h;~Child(){WaitForSingleObject(h,15000);CloseHandle(h);}} child{pi.hProcess};
  std::wcout<<L"Receive-line full-band baseline:\n";
- if(!df::probeEndpointQuality(receiveCapture.id))return 1;
+ std::array<double,8> baseline{},output{};
+ if(!df::probeEndpointQuality(receiveCapture.id,&baseline))return 1;
  df::Engine monitor;df::RouteConfig route;route.process=false;route.monitor=true;route.feed=receiveCapture.id;route.output=send.id;
  monitor.start(nullptr,route,2);Sleep(800);
  if(monitor.state.load()!=2){std::wcerr<<monitor.message()<<L"\n";return 1;}
- std::wcout<<L"SPEAKER render-loopback transfer:\n";
- int renderOk=df::probeEndpointQuality(send.id,true);
- std::wcout<<L"Call send capture transfer:\n";
- int ok=df::probeEndpointQuality(mic.id);monitor.stop();return ok&&renderOk?0:1;
+ // Measure the actual transport's recording endpoint. A software render
+ // tap is a different topology and does not validate this cable's output.
+ std::wcout<<L"Complete SPEAKER path into paired recording endpoint:\n";
+ int ok=df::probeEndpointQuality(mic.id,&output);monitor.stop();
+ for(size_t i=0;i<baseline.size();++i){
+  double ratio=baseline[i]>0?output[i]/baseline[i]:0;
+  std::wcout<<L"SPEAKER transfer band/channel "<<i<<L": "<<20*std::log10(std::max(ratio,1e-12))<<L" dB\n";
+  ok=ok&&std::abs(ratio-1)<.06;
+ }
+ std::wcout<<(ok?L"PASS: SPEAKER adds less than 6 percent amplitude change at all four bands in both channels.\n":L"FAIL: SPEAKER relative frequency response.\n");
+ return ok?0:1;
 }
 int wmain(int argc,wchar_t** argv){
  if(argc>1&&wcscmp(argv[1],L"--silent")==0){Sleep(14000);return 0;}

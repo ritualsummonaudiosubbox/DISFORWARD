@@ -121,12 +121,12 @@ struct Capture {
     bool started=false;
     HANDLE event=nullptr;
     StereoQueue queue;
-    HRESULT init(const std::wstring &id,bool process,DWORD pid,HANDLE cancel,bool loopback=false){
+    HRESULT init(const std::wstring &id,bool process,DWORD pid,HANDLE cancel){
         auto hr=process?processClient(pid,cancel,client):clientFor(id,client);if(FAILED(hr))return hr;
 #ifdef DISFORWARD_AUDIO_TEST
         if(process)std::wprintf(L"Activation succeeded for PID %lu\n",static_cast<unsigned long>(pid));
 #endif
-        auto f=format();DWORD flags=Convert|(process?(AUDCLNT_STREAMFLAGS_LOOPBACK|AUDCLNT_STREAMFLAGS_EVENTCALLBACK):(loopback?AUDCLNT_STREAMFLAGS_LOOPBACK:0));
+        auto f=format();DWORD flags=Convert|(process?(AUDCLNT_STREAMFLAGS_LOOPBACK|AUDCLNT_STREAMFLAGS_EVENTCALLBACK):0);
         if(process){event=CreateEventW(nullptr,FALSE,FALSE,nullptr);if(!event)return HRESULT_FROM_WIN32(GetLastError());}
         hr=client->Initialize(AUDCLNT_SHAREMODE_SHARED,flags,process?0:200000,0,&f,nullptr);
 #ifdef DISFORWARD_AUDIO_TEST
@@ -169,11 +169,11 @@ std::vector<Endpoint> endpoints(EDataFlow flow){
     return result;
 }
 #ifdef DISFORWARD_AUDIO_TEST
-int probeEndpointQuality(const std::wstring& id,bool loopback){
+int probeEndpointQuality(const std::wstring& id,std::array<double,8>* levels){
  HANDLE cancel=CreateEventW(nullptr,TRUE,FALSE,nullptr);if(!cancel)return 0;
  struct Close{HANDLE h;~Close(){CloseHandle(h);}} close{cancel};
  auto input=std::make_unique<Capture>();
- if(FAILED(input->init(id,false,0,cancel,loopback))||FAILED(input->start()))return 0;
+ if(FAILED(input->init(id,false,0,cancel))||FAILED(input->start()))return 0;
  std::vector<float> left,right;auto begin=GetTickCount64();std::atomic<unsigned long> faults{0};
  while(GetTickCount64()-begin<1800){
   if(FAILED(input->drain(faults)))return 0;
@@ -196,13 +196,14 @@ int probeEndpointQuality(const std::wstring& id,bool loopback){
   }
   return best;
  };
- bool ok=true;
+ bool ok=true;size_t band=0;
  for(double hz:{80.,997.,8000.,16000.}){
   double l=amplitude(left,hz),r=amplitude(right,hz);
+  if(levels){(*levels)[band*2]=l;(*levels)[band*2+1]=r;}++band;
   std::wprintf(L"SPEAKER full-band %5.0f Hz: L=%.6f R=%.6f (target .0125/.00625)\n",hz,l,r);
   ok=ok&&std::abs(l/.0125-1)<.15&&std::abs(r/.00625-1)<.15;
  }
- std::wprintf(L"%ls: SPEAKER 80 Hz–16 kHz transfer and independent stereo channel levels on virtual test sink.\n",ok?L"PASS":L"FAIL");
+ std::wprintf(L"%ls: 80 Hz-16 kHz transfer and independent stereo channel levels on virtual test sink.\n",ok?L"PASS":L"FAIL");
  return ok?1:0;
 }
 int probeEndpointTone(const std::wstring& id,double frequency,unsigned duration){
