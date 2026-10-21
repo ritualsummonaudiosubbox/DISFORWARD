@@ -55,3 +55,12 @@ may be required. No unsigned custom DISFORWARD kernel driver is installed.
 - No acoustic echo cancellation has been added to Discord's physical mic.
   Discord owns that capture stream. Enable Discord Echo Cancellation when
   using PC speakers. Actual room echo and subjective listening need testing.
+
+FULL-BAND CLOCK PATCH
+The expanded Windows frequency test caught treble attenuation with Windows
+variable-rate playback. Drift correction now uses a 64-tap Blackman-windowed
+sinc reader in DISFORWARD; Windows RATEADJUST is not used. Both phone and
+SPEAKER use this path. The added filter history is 31 samples at 48 kHz, in
+addition to WASAPI/queue/device buffers; this is not zero-latency routing.
+Portable tests check 80 Hz-20 kHz at +/-1000 ppm against analytic references.
+Windows tests check receive-line baseline and complete SPEAKER transfer.

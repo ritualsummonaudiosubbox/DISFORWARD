@@ -102,6 +102,8 @@ int quality(const df::Endpoint& send,const df::Endpoint& mic){
  if(!CreateProcessW(path,cmd.data(),nullptr,nullptr,FALSE,CREATE_NO_WINDOW,nullptr,nullptr,&si,&pi))return 1;
  CloseHandle(pi.hThread);
  struct Child{HANDLE h;~Child(){WaitForSingleObject(h,15000);CloseHandle(h);}} child{pi.hProcess};
+ std::wcout<<L"Receive-line full-band baseline:\n";
+ if(!df::probeEndpointQuality(receiveCapture.id))return 1;
  df::Engine monitor;df::RouteConfig route;route.process=false;route.monitor=true;route.feed=receiveCapture.id;route.output=send.id;
  monitor.start(nullptr,route,2);Sleep(800);
  if(monitor.state.load()!=2){std::wcerr<<monitor.message()<<L"\n";return 1;}
@@ -117,7 +119,7 @@ int wmain(int argc,wchar_t** argv){
  if(!found){std::wcerr<<L"FAIL: no active VB-CABLE endpoint pair.\n";return 1;}
  if(argc>1&&wcscmp(argv[1],L"--tone")==0)return tone(send);
  if(argc>1&&wcscmp(argv[1],L"--tone-receive")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,24000);}
- if(argc>1&&wcscmp(argv[1],L"--tone-quality")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,8000,true);}
+ if(argc>1&&wcscmp(argv[1],L"--tone-quality")==0){df::Endpoint out,in;if(!df::receivePair(df::endpoints(eRender),df::endpoints(eCapture),out,in))return 1;return tone(out,14000,true);}
  if(argc>1&&wcscmp(argv[1],L"--split")==0)return split(send,mic);
  if(argc>1&&wcscmp(argv[1],L"--quality")==0)return quality(send,mic);
  std::wcout<<L"Playback: "<<send.name<<L" | interface: "<<send.driver<<L"\nCapture: "<<mic.name<<L" | interface: "<<mic.driver<<L"\n";

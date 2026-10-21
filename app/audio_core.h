@@ -12,6 +12,7 @@ class StereoQueue {
     size_t read=0, count=0;
 public:
     size_t size() const {return count;}
+    bool at(size_t offset,float& l,float& r)const{if(offset>=count){l=r=0;return false;}size_t i=(read+offset)%capacity;l=data[i*2];r=data[i*2+1];return true;}
     void clear(){read=0;count=0;}
     void discard(size_t frames){frames=std::min(frames,count);read=(read+frames)%capacity;count-=frames;}
     size_t push(const float* in,size_t frames,bool silent=false){
@@ -28,6 +29,50 @@ public:
         return dropped;
     }
     bool pop(float &l,float &r){if(!count){l=r=0;return false;}l=data[read*2];r=data[read*2+1];discard(1);return true;}
+};
+// Fractional clock matching stays in the app. A 64-tap Blackman-windowed
+// sinc preserves treble that linear variable-rate interpolation attenuates.
+// The phase table is shared, immutable, and built before audio starts.
+class DriftReader {
+    static constexpr int half=32,phases=1024,taps=64;
+    using Kernel=std::array<float,taps>;
+    using Table=std::array<Kernel,phases+1>;
+    const Table& table;
+    double position=31,ratio=1;
+    static const Table& coefficients(){
+        static const Table values=[](){
+            Table result{};constexpr double pi=3.14159265358979323846;
+            for(int phase=0;phase<=phases;++phase){
+                double fraction=static_cast<double>(phase)/phases,total=0;
+                for(int j=0;j<taps;++j){
+                    double distance=j-31-fraction;
+                    double sinc=std::abs(distance)<1e-12?1:std::sin(pi*distance)/(pi*distance);
+                    double window=.42+.5*std::cos(pi*distance/half)+.08*std::cos(2*pi*distance/half);
+                    result[phase][j]=static_cast<float>(sinc*window);total+=sinc*window;
+                }
+                for(auto& value:result[phase])value=static_cast<float>(value/total);
+            }
+            return result;
+        }();
+        return values;
+    }
+public:
+    DriftReader():table(coefficients()){}
+    void reset(){position=31;ratio=1;}
+    void setRatio(double value){ratio=std::isfinite(value)?std::clamp(value,.999,1.001):1;}
+    bool frame(StereoQueue& queue,float& left,float& right){
+        const auto base=static_cast<size_t>(position);
+        if(queue.size()<=base+32){left=right=0;return false;}
+        double phase=(position-base)*phases;int index=std::min(static_cast<int>(phase),phases-1);
+        float blend=static_cast<float>(phase-index);double l=0,r=0;
+        for(int j=0;j<taps;++j){
+            float a=0,b=0;queue.at(base-31+static_cast<size_t>(j),a,b);
+            float weight=table[index][j]+blend*(table[index+1][j]-table[index][j]);l+=a*weight;r+=b*weight;
+        }
+        left=static_cast<float>(l);right=static_cast<float>(r);
+        position+=ratio;size_t used=static_cast<size_t>(position)-31;queue.discard(used);position-=used;
+        return true;
+    }
 };
 // Break-before-make: the old source ramps completely to zero before the
 // new source is permitted. Never sum two voices, including mid-ramp changes.

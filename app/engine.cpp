@@ -315,7 +315,7 @@ void Engine::run(RouteConfig config){
         const auto inputId=active==2&&!config.process?config.feed:config.mic;
         const wchar_t* inputContext=active==2?L"Discord receive line":L"Your microphone";
         auto input=std::make_unique<Capture>();
-        Com<IAudioClient> output;Com<IAudioRenderClient> render;Com<IAudioClockAdjustment> clock;
+        Com<IAudioClient> output;Com<IAudioRenderClient> render;
         HANDLE program=nullptr;
         if(isProgram){program=OpenProcess(SYNCHRONIZE,FALSE,config.pid);if(!program){fail(HRESULT_FROM_WIN32(GetLastError()),L"Discord closed");return;}}
         struct Close{HANDLE h;~Close(){if(h)CloseHandle(h);}} close{program};
@@ -323,13 +323,13 @@ void Engine::run(RouteConfig config){
         if(!checked(input->init(inputId,isProgram,config.pid,stopEvent),inputContext))return;
         if(!checked(config.monitor?monitorClient(config.output,output):clientFor(config.output,output),config.monitor?L"SPEAKER output (use a device at 44.1 kHz or higher)":L"Selected audio output"))return;
         auto f=format();
-        HRESULT outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr);
+        HRESULT outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert,300000,0,&f,nullptr);
         if(FAILED(outputInit)&&config.monitor){
             // Some drivers advertise RAW but reject its stream/format combination.
             // A fresh media client is required; never reuse a failed Initialize.
             output.put();
             if(!checked(monitorClient(config.output,output,false),L"SPEAKER compatible media output"))return;
-            outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert|AUDCLNT_STREAMFLAGS_RATEADJUST,300000,0,&f,nullptr);
+            outputInit=output->Initialize(AUDCLNT_SHAREMODE_SHARED,Convert,300000,0,&f,nullptr);
         }
         if(!checked(outputInit,L"Selected audio output"))return;
         if(!checked(output->GetService(__uuidof(IAudioRenderClient),(void**)render.put()),L"Output buffer"))return;
@@ -340,7 +340,7 @@ void Engine::run(RouteConfig config){
             if(!checked(baseSession->QueryInterface(__uuidof(IAudioSessionControl2),(void**)session.put()),L"SPEAKER session control"))return;
             if(!checked(session->SetDuckingPreference(TRUE),L"SPEAKER volume stability"))return;
         }
-        output->GetService(__uuidof(IAudioClockAdjustment),(void**)clock.put());
+        DriftReader reader;
         UINT32 frames=0;if(!checked(output->GetBufferSize(&frames),L"Output capacity"))return;
         bufferMs=(int)(frames*1000/48000);
         if(!checked(input->start(),inputContext))return;
@@ -365,7 +365,7 @@ void Engine::run(RouteConfig config){
                 if(!primed&&input->queue.size()>=targetFrames)primed=true;
                 bool missing=false;
                 for(UINT32 i=0;i<available;i++){
-                    float l=0,r=0;bool has=primed&&input->queue.pop(l,r);
+                    float l=0,r=0;bool has=primed&&reader.frame(input->queue,l,r);
                     if(primed&&requested&&!has)missing=true;
                     gate.frame(primed?requested:0,active==1?l:0,active==1?r:0,active==2?l:0,active==2?r:0,samples[i*2],samples[i*2+1]);
                     maxSample=std::max({maxSample,std::abs(samples[i*2]),std::abs(samples[i*2+1])});
@@ -374,10 +374,10 @@ void Engine::run(RouteConfig config){
                 peak=(int)(std::min(maxSample,2.f)*10000);
                 if(!checked(render->ReleaseBuffer(available,0),L"Output stream"))break;
             }
-            auto now=GetTickCount64();if(clock&&now-adjusted>=250){
+            auto now=GetTickCount64();if(now-adjusted>=250){
                 float desired=std::clamp(((float)input->queue.size()-(float)targetFrames)*.0000003f,-.001f,.001f);
                 correction+=std::clamp(desired-correction,-.00001f,.00001f);
-                if(!checked(clock->SetSampleRate(48000.f*(1+correction)),L"Output clock"))break;
+                reader.setRatio(1+correction);
                 adjusted=now;
             }
             Sleep(2);
